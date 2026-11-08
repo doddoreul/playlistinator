@@ -21,7 +21,7 @@
       <button type="submit">Ajouter</button>
     </form>
     <div id="add-track-status" class="muted"></div>
-    <div style="margin-bottom:8px;">
+    <div id="bulk-actions" style="margin-bottom:8px;display:none;">
       <button onclick="deleteSelected()">Supprimer la sélection</button>
     </div>
     <table class="tracks">
@@ -29,7 +29,7 @@
       <tbody>
       {% for t in tracks %}
       <tr data-track-id="{{ t.id }}">
-        <td><input type="checkbox" class="sel-cb" value="{{ t.id }}"></td>
+        <td><input type="checkbox" class="sel-cb" value="{{ t.id }}" onchange="updateBulkActions()"></td>
         <td><input style="width:100%;min-width:360px" value="{{ t.title or '' }}" onchange="updateField({{ t.id }},'title',this.value)"></td>
         <td><input style="width:100%" value="{{ t.artist or '' }}" onchange="updateField({{ t.id }},'artist',this.value)"></td>
         <td><input style="width:100%" value="{{ t.album or '' }}" onchange="updateField({{ t.id }},'album',this.value)"></td>
@@ -137,6 +137,11 @@
 <script>
 function toggleAll(cb){
   document.querySelectorAll('.sel-cb').forEach(c=>c.checked=cb.checked);
+  updateBulkActions();
+}
+function updateBulkActions(){
+  const any=[...document.querySelectorAll('.sel-cb')].some(c=>c.checked);
+  document.getElementById('bulk-actions').style.display=any?'block':'none';
 }
 async function deleteSelected(){
   const ids=[...document.querySelectorAll('.sel-cb:checked')].map(c=>c.value);
