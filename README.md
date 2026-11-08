@@ -1,15 +1,13 @@
 # Playlistinator
 
-Application web personnelle, 100 % locale, de lecture de musique type « Spotify Web »,
-gérant des playlists à partir de fichiers MP3 stockés sur la machine de l'utilisateur.
+Personal, 100% local web music player (Spotify Web style), managing playlists from MP3 files stored on the user's machine.
 
 ## Stack
 
-- **Serveur** : Python 3.11+ / FastAPI (choisi pour la simplicité, mutagen pour les tags ID3,
-  sqlite3 dans la stdlib, documentation OpenAPI automatique).
-- **Frontend** : HTML/CSS/JS servi par le serveur, HTMX pour les interactions, JS vanilla pour le lecteur.
-- **Base de données** : SQLite (`data/playlistinator.db`).
-- **Aucune dépendance cloud.**
+- **Server**: Python 3.11+ / FastAPI (chosen for simplicity, mutagen for ID3 tags, sqlite3 in stdlib, automatic OpenAPI docs).
+- **Frontend**: HTML/CSS/JS served by the server, HTMX for interactions, vanilla JS for the player.
+- **Database**: SQLite (`data/playlistinator.db`).
+- **No cloud dependency.**
 
 ## Installation
 
@@ -23,35 +21,42 @@ source .venv/bin/activate
 pip install -r requirements.txt
 ```
 
-## Lancement
+## Launch
 
 ```bash
 python -m app
 ```
 
-Puis ouvrir http://127.0.0.1:8000 dans le navigateur.
+Then open http://127.0.0.1:8000 in your browser.
 
 ## Configuration
 
-Variables d'environnement (toutes optionnelles) :
+Environment variables (all optional):
 
-| Variable | Défaut | Description |
+| Variable | Default | Description |
 |---|---|---|
-| `MEDIA_DIR` | `media` | Dossier contenant les MP3 |
-| `DB_PATH` | `data/playlistinator.db` | Fichier SQLite |
-| `HOST` | `127.0.0.1` | Adresse d'écoute |
+| `MEDIA_DIR` | `media` | Folder containing MP3s |
+| `DB_PATH` | `data/playlistinator.db` | SQLite file |
+| `HOST` | `127.0.0.1` | Listen address |
 | `PORT` | `8000` | Port |
-| `MAX_IMPORT_SIZE` | `52428800` (50 Mo) | Taille max d'import |
+| `MAX_IMPORT_SIZE` | `52428800` (50 MB) | Max import size |
 | `USER_AGENT` | `Playlistinator/1.0 (...)` | User-Agent (MusicBrainz) |
-| `FILENAME_PATTERNS` | (motifs par défaut) | Motifs séparés par `;` pour parser les noms |
+| `FILENAME_PATTERNS` | (default patterns) | Semicolon-separated patterns to parse filenames |
+| `PLUGINS_DIR` | `plugins` | Plugins folder |
 
-## Utilisation
+## Usage
 
-1. Déposer des MP3 dans `media/` puis cliquer « Scanner media/ ».
-2. Créer des playlists dans la barre latérale, ajouter des pistes.
-3. Lire une playlist, naviguer avec les raccourcis clavier (espace, flèches, N/P).
-4. Importer une musique par URL directe via la page « Importer ».
-5. Rechercher une pochette via le bouton « Pochette » d'une piste.
+1. Drop MP3s into `media/`, then click "Scan".
+2. Create playlists in the sidebar, add tracks.
+3. Play a playlist, navigate with keyboard shortcuts (space, arrows, N/P).
+4. Import a track by direct URL via the "Import" page.
+5. Search for a cover via the "Details" button of a track.
+
+## Plugins
+
+Extensible plugin system. Each plugin is a folder in `plugins/` containing a `plugin.py` (or `__init__.py`) exposing `register(app, context)`. See `plugins/README.md` and `plugins/example/`. Location configurable via `PLUGINS_DIR`.
+
+Optional plugins (e.g. YouTube) are provided in `plugins_available/`. To enable, copy the folder into `plugins/` (or point `PLUGINS_DIR` at it).
 
 ## Tests
 
@@ -59,16 +64,10 @@ Variables d'environnement (toutes optionnelles) :
 python -m pytest
 ```
 
-## Plugins
+## Known limitations
 
-Un système de plugins permet d'étendre l'application. Chaque plugin est un dossier dans
-`plugins/` contenant un `plugin.py` (ou `__init__.py`) exposant `register(app, context)`.
-Voir `plugins/README.md` et `plugins/example/`. Emplacement configurable via `PLUGINS_DIR`.
-
-## Limitations connues
-
-- La recherche de pochettes dépend de MusicBrainz/Cover Art Archive (réseau, limitation de débit 1 req/s).
-- Pas de synchronisation multi-appareils (usage personnel local).
-- Le lecteur ne gère pas les listes de lecture avancées (crossfade, etc.).
-- L'édition des tags écrit dans le fichier (mutagen) ; sauvegarde manuelle requise côté utilisateur pour la bibliothèque.
-- Pas d'authentification (usage local uniquement).
+- Cover search depends on MusicBrainz/Cover Art Archive (network, 1 req/s rate limit).
+- No multi-device sync (personal local use).
+- No advanced playback (crossfade, etc.).
+- Tag editing writes to the file (mutagen); library refresh is manual.
+- No authentication (local use only).

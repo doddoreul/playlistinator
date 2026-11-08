@@ -42,7 +42,8 @@ load_plugins(app)
 def on_startup():
     init_db()
     try:
-        from .services.scanner import scan_media
+        from .services.scanner import scan_media, cleanup_orphans
+        cleanup_orphans()
         scan_media()
     except Exception:
         pass

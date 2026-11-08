@@ -1,14 +1,14 @@
 {% if not tracks %}
-<p class="muted">Playlist vide.</p>
+<p class="muted">Empty playlist.</p>
 {% else %}
 <table class="tracks">
-  <thead><tr><th>Titre</th><th>Artiste</th><th>Album</th><th>Durée</th><th></th></tr></thead>
+  <thead><tr><th>Title</th><th>Artist</th><th>Album</th><th>Duration</th><th></th></tr></thead>
   <tbody>
   {% for t in tracks %}
   <tr data-track-id="{{ t.id }}" data-title="{{ t.title or t.path }}" data-artist="{{ t.artist or '' }}">
-    <td>{{ t.title or t.path }}</td>
-    <td>{{ t.artist or '—' }}</td>
-    <td>{{ t.album or '—' }}</td>
+    <td title="{{ t.title or t.path }}">{{ (t.title or t.path)[:25] }}{% if (t.title or t.path)|length > 25 %}…{% endif %}</td>
+    <td title="{{ t.artist or '' }}">{{ (t.artist or '—')[:25] }}{% if (t.artist or '')|length > 25 %}…{% endif %}</td>
+    <td title="{{ t.album or '' }}">{{ (t.album or '—')[:25] }}{% if (t.album or '')|length > 25 %}…{% endif %}</td>
     <td>{{ (t.duration|int//60) if t.duration else '—' }}:{{ '%02d'|format(t.duration|int%60) if t.duration else '' }}</td>
     <td>
       <button onclick="event.stopPropagation(); playTrack({{ t.id }})">▶</button>

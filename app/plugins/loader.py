@@ -59,7 +59,7 @@ def _register_module(mod, app, context, name):
         try:
             reg(app, context)
             _loaded.append(name)
-            log.info("Plugin chargé : %s", name)
+            log.info("Plugin loaded: %s", name)
         except Exception:
             log.exception("Erreur chargement plugin %s", name)
     else:
@@ -150,9 +150,9 @@ def activate_plugin(name: str) -> tuple[bool, str]:
     avail = _available_root() / name
     active = _plugins_root() / name
     if active.exists():
-        return False, "déjà actif"
+        return False, "already active"
     if not avail.exists():
-        return False, "plugin introuvable"
+        return False, "plugin not found"
     try:
         active.parent.mkdir(parents=True, exist_ok=True)
         shutil.move(str(avail), str(active))
@@ -162,19 +162,19 @@ def activate_plugin(name: str) -> tuple[bool, str]:
     if _app is not None:
         ok = _load_one(name, active, _app)
         if ok:
-            return True, "activé"
-        return True, "activé (chargement manuel requis)"
-    return True, "activé (redémarrer pour charger les routes)"
+            return True, "activated"
+        return True, "activated (manual load required)"
+    return True, "activé (restart to load routes)"
 
 
 def deactivate_plugin(name: str) -> tuple[bool, str]:
     active = _plugins_root() / name
     avail = _available_root() / name
     if not active.exists():
-        return False, "pas actif"
+        return False, "not active"
     try:
         avail.parent.mkdir(parents=True, exist_ok=True)
         shutil.move(str(active), str(avail))
     except Exception as e:
         return False, str(e)
-    return True, "désactivé (redémarrer pour appliquer)"
+    return True, "désactivé (restart to apply)"

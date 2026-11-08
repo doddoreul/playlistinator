@@ -1,6 +1,6 @@
 function scanLibrary() {
   fetch('/api/scan', {method:'POST'}).then(r=>r.json()).then(res=>{
-    alert(`Scan: ${res.added} ajoutés, ${res.updated} mis à jour, ${res.skipped} ignorés`);
+    alert(`Scan: ${res.added} added, ${res.updated} updated, ${res.skipped} skipped`);
     htmx.trigger('#main-content','load');
     htmx.trigger('#playlists','load');
   });
@@ -54,7 +54,7 @@ function editTrack(id) {
   fd.append('write_tags_flag','0');
   fetch(`/api/tracks/${id}/edit`,{method:'POST',body:fd}).then(()=>htmx.trigger('#main-content','load'));
 }
-// Drag & drop pour réordonner une playlist
+// Drag & drop to reorder a playlist
 document.addEventListener('dragstart', (e) => {
   const li = e.target.closest('li[data-track-id]');
   if (li) e.dataTransfer.setData('text/plain', li.dataset.trackId);
@@ -100,7 +100,7 @@ async function showDetails(id) {
       <h3>${escapeHtml(t.title || t.path)}</h3>
       <div class="row"><span>Artiste</span><span>${escapeHtml(t.artist || '—')}</span></div>
       <div class="row"><span>Album</span><span>${escapeHtml(t.album || '—')}</span></div>
-      <div class="row"><span>Durée</span><span>${dur}</span></div>
+      <div class="row"><span>Duration</span><span>${dur}</span></div>
       <div class="row"><span>Chemin</span><span>${escapeHtml(t.path)}</span></div>
       <div style="margin-top:12px;display:flex;gap:8px;">
         <button onclick="playTrack(${t.id})">▶ Lire</button>
@@ -115,10 +115,40 @@ function closeDetails() {
   if (panel) panel.classList.remove('open');
 }
 function escapeHtml(s){ return String(s).replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+// Home page logic
+function renderHomeQueue() {
+  const ol = document.getElementById('home-queue');
+  const empty = document.getElementById('home-queue-empty');
+  if (!ol) return;
+  if (!queue || !queue.length) { ol.innerHTML=''; if(empty) empty.style.display='block'; return; }
+  if(empty) empty.style.display='none';
+  ol.innerHTML = queue.map((t) => `<li style="padding:4px 0;border-bottom:1px solid var(--border);cursor:pointer;" onclick="playTrack(${t.id})">${escapeHtml(t.title||t.path)} — ${escapeHtml(t.artist||'')}</li>`).join('');
+}
+function updateHomeMeta(trackId) {
+  const cover = document.getElementById('home-cover');
+  if (cover) cover.src = `/cover/${trackId}`;
+  const t = findTrack(trackId);
+  const title = document.getElementById('home-title');
+  if (title) title.textContent = t ? (t.title || t.path) : '—';
+  const artist = document.getElementById('home-artist');
+  if (artist) artist.textContent = t ? (t.artist || '') : '';
+  const album = document.getElementById('home-album');
+  if (album) album.textContent = t ? (t.album || '') : '';
+}
+if (document.getElementById('home-queue')) {
+  const _orig = updatePlayerMeta;
+  updatePlayerMeta = function(trackId) {
+    _orig(trackId);
+    updateHomeMeta(trackId);
+  };
+  setInterval(renderHomeQueue, 1000);
+  setTimeout(renderHomeQueue, 200);
+  if (currentTrackId) updateHomeMeta(currentTrackId);
+}
 function searchCovers(id) {
   fetch(`/api/tracks/${id}/covers`).then(r=>r.json()).then(data=>{
     const res = data.results || [];
-    if (!res.length) { alert('Aucune pochette trouvée'); return; }
+    if (!res.length) { alert('No cover found'); return; }
     const url = res[0].image_url;
     if (confirm('Appliquer cette pochette ?')) {
       const fd = new FormData(); fd.append('image_url', url);

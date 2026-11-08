@@ -3,7 +3,7 @@ from __future__ import annotations
 
 import asyncio
 
-from fastapi import APIRouter, BackgroundTasks, Form, Request
+from fastapi import APIRouter, BackgroundTasks, File, Form, Request, UploadFile
 from fastapi.responses import HTMLResponse, JSONResponse
 
 from .. import templates
@@ -16,6 +16,34 @@ router = APIRouter()
 def import_page(request: Request):
     from ..plugins.loader import import_tabs
     return templates.TemplateResponse(request, "import.html", {"import_tabs": import_tabs()})
+
+
+@router.get("/api/import/plugin-tabs")
+def plugin_import_tabs():
+    from ..plugins.loader import import_tabs
+    return JSONResponse(import_tabs())
+
+
+@router.post("/api/import/files")
+async def import_files(files: list[UploadFile] = File(...)):
+    from ..config import get_config
+    from ..services.scanner import index_file
+    cfg = get_config()
+    results = []
+    for f in files:
+        if not f.filename:
+            continue
+        dest = cfg.media_dir / f.filename
+        i = 1
+        base = dest.stem
+        while dest.exists():
+            dest = cfg.media_dir / f"{base}_{i}.mp3"
+            i += 1
+        content = await f.read()
+        dest.write_bytes(content)
+        tid = index_file(dest)
+        results.append({"filename": f.filename, "track_id": tid})
+    return JSONResponse({"results": results})
 
 
 @router.post("/api/import/url")
@@ -33,5 +61,5 @@ async def start_import(url: str = Form(...), background_tasks: BackgroundTasks =
 async def import_status(job_id: str):
     job = get_job(job_id)
     if not job:
-        return JSONResponse({"error": "job inconnu"}, status_code=404)
+        return JSONResponse({"error": "unknown job"}, status_code=404)
     return JSONResponse(job)

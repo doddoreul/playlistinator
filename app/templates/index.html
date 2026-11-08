@@ -1,12 +1,12 @@
 {% extends "base.html" %}
-{% block title %}Bibliothèque - Playlistinator{% endblock %}
+{% block title %}Library - Playlistinator{% endblock %}
 {% block content %}
     <div class="toolbar">
-      <input type="search" id="search" placeholder="Rechercher..." oninput="searchTracks(this.value)">
-      <button onclick="scanLibrary()">Scanner</button>
+      <input type="search" id="search" placeholder="Search..." oninput="searchTracks(this.value)">
+      <button onclick="scanLibrary()">Scan</button>
     </div>
     <div style="display:flex;gap:8px;margin-bottom:12px;">
-      <button class="tab active" onclick="libTab('musiques', this)">Musiques</button>
+      <button class="tab active" onclick="libTab('musiques', this)">Tracks</button>
       <button class="tab" onclick="libTab('artistes', this)">Artistes</button>
       <button class="tab" onclick="libTab('albums', this)">Albums</button>
     </div>

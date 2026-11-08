@@ -11,8 +11,16 @@ function loadState() {
     queue = s.queue || [];
     queueIndex = s.index || 0;
     if (s.volume != null) audio.volume = s.volume;
-    if (s.trackId) {
-      setAudioSrc(s.trackId, s.position || 0);
+    // filter invalid tracks
+    fetch('/api/tracks/ids').then(r=>r.json()).then(ids=>{
+      const valid = new Set(ids);
+      queue = queue.filter(t => valid.has(t.id));
+      if (s.trackId && !valid.has(s.trackId)) { currentTrackId = null; }
+      else if (s.trackId) { setAudioSrc(s.trackId, s.position || 0); }
+      saveState();
+    }).catch(()=>{});
+    if (s.trackId && queue.length && queue.find(t=>t.id===s.trackId)) {
+      // defer setAudioSrc until ids loaded (handled above)
     }
   } catch(e) {}
 }
@@ -101,6 +109,10 @@ audio.addEventListener('timeupdate', () => {
   if (audio.duration) document.getElementById('progress').value = (audio.currentTime/audio.duration)*1000;
   document.getElementById('time').textContent = fmt(audio.currentTime);
   saveState();
+});
+audio.addEventListener('error', () => {
+  // skip invalid track
+  if (queue.length > 1) nextTrack();
 });
 audio.addEventListener('ended', () => {
   if (repeatMode === 1) { audio.currentTime = 0; audio.play(); }

@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="fr">
+<html lang="en">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -13,11 +13,11 @@
   <aside class="sidebar">
     <h1>Playlistinator</h1>
     <nav>
-      <a href="/" hx-boost="true">Bibliothèque</a>
+      <a href="/home" hx-boost="true">Home</a>
+      <a href="/" hx-boost="true">Library</a>
       <a href="/playlists" hx-boost="true">Playlists</a>
-      <a href="/gestion" hx-boost="true">Gestion</a>
+      <a href="/gestion" hx-boost="true">Management</a>
       <a href="/plugins" hx-boost="true">Plugins</a>
-      <a href="/import" hx-boost="true">Importer</a>
     </nav>
     <div class="playlists-header"><span>Playlists</span></div>
     <div id="playlists" hx-get="/api/playlists" hx-trigger="load" hx-swap="innerHTML"></div>

@@ -1,31 +1,35 @@
 {% extends "base.html" %}
-{% block title %}Gestion - Playlistinator{% endblock %}
+{% block title %}Management - Playlistinator{% endblock %}
 {% block content %}
 <div>
-  <h2>Gestion</h2>
+  <h2>Management</h2>
   <div style="display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap;">
-    <button class="tab active" onclick="gTab('musiques')">Musiques</button>
-    <button class="tab" onclick="gTab('artistes')">Artistes</button>
+    <button class="tab active" onclick="gTab('musiques')">Tracks</button>
+    <button class="tab" onclick="gTab('artistes')">Artists</button>
     <button class="tab" onclick="gTab('albums')">Albums</button>
     <button class="tab" onclick="gTab('playlists')">Playlists</button>
-    <button class="tab" onclick="gTab('dups')">Doublons</button>
+    <button class="tab" onclick="gTab('dups')">Duplicates</button>
+    <button class="tab" onclick="gTab('import')">Import song</button>
   </div>
 
   <div id="pane-musiques">
-    <h3>Ajouter une musique (chemin local)</h3>
+    <h3>Add a track (local path)</h3>
     <form onsubmit="addTrackManual(event)" style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px;">
-      <input name="path" placeholder="/chemin/fichier.mp3" required style="flex:2">
-      <input name="title" placeholder="Titre">
-      <input name="artist" placeholder="Artiste">
+      <input name="path" placeholder="/path/to/file.mp3" required style="flex:2">
+      <input name="title" placeholder="Title">
+      <input name="artist" placeholder="Artist">
       <input name="album" placeholder="Album">
-      <button type="submit">Ajouter</button>
+      <button type="submit">Add</button>
     </form>
     <div id="add-track-status" class="muted"></div>
-    <div id="bulk-actions" style="margin-bottom:8px;display:none;">
-      <button onclick="deleteSelected()">Supprimer la sélection</button>
+    <div style="margin-bottom:8px;display:flex;gap:8px;">
+      <div id="bulk-actions" style="display:none;">
+        <button onclick="deleteSelected()">Delete selection</button>
+      </div>
+      <button onclick="cleanupOrphans()">Clean orphans</button>
     </div>
     <table class="tracks">
-      <thead><tr><th style="width:30px;"><input type="checkbox" onclick="toggleAll(this)"></th><th>Titre</th><th>Artiste</th><th>Album</th><th></th></tr></thead>
+      <thead><tr><th style="width:30px;"><input type="checkbox" onclick="toggleAll(this)"></th><th>Title</th><th>Artist</th><th>Album</th><th></th></tr></thead>
       <tbody>
       {% for t in tracks %}
       <tr data-track-id="{{ t.id }}">
@@ -34,8 +38,8 @@
         <td><input style="width:100%" value="{{ t.artist or '' }}" onchange="updateField({{ t.id }},'artist',this.value)"></td>
         <td><input style="width:100%" value="{{ t.album or '' }}" onchange="updateField({{ t.id }},'album',this.value)"></td>
         <td style="text-align:right;white-space:nowrap;">
-          <button onclick="deleteTrack({{ t.id }})">Suppr</button>
-          <button onclick="openDetails({{ t.id }})">Détails</button>
+          <button onclick="deleteTrack({{ t.id }})">Delete</button>
+          <button onclick="openDetails({{ t.id }})">Details</button>
         </td>
       </tr>
       {% endfor %}
@@ -44,16 +48,16 @@
   </div>
 
   <div id="pane-artistes" style="display:none;">
-    <h3>Artistes</h3>
+    <h3>Artists</h3>
     {% if not artists %}
-    <p class="muted">Aucun artiste.</p>
+    <p class="muted">No artists.</p>
     {% else %}
     <table class="tracks">
-      <thead><tr><th>Artiste</th><th>Pistes</th></tr></thead>
+      <thead><tr><th>Artist</th><th>Tracks</th></tr></thead>
       <tbody>
       {% for a in artists %}
       <tr>
-        <td>{{ a.name }}</td>
+        <td><input style="width:100%" value="{{ a.name }}" onchange="renameArtist('{{ a.name|e }}', this.value)"></td>
         <td>{{ a.count }}</td>
       </tr>
       {% endfor %}
@@ -65,14 +69,14 @@
   <div id="pane-albums" style="display:none;">
     <h3>Albums</h3>
     {% if not albums %}
-    <p class="muted">Aucun album.</p>
+    <p class="muted">No albums.</p>
     {% else %}
     <table class="tracks">
-      <thead><tr><th>Album</th><th>Artiste</th><th>Pistes</th></tr></thead>
+      <thead><tr><th>Album</th><th>Artist</th><th>Tracks</th></tr></thead>
       <tbody>
       {% for a in albums %}
       <tr>
-        <td>{{ a.name }}</td>
+        <td><input style="width:100%" value="{{ a.name }}" onchange="renameAlbum('{{ a.name|e }}', this.value)"></td>
         <td>{{ a.artist or '—' }}</td>
         <td>{{ a.count }}</td>
       </tr>
@@ -85,8 +89,8 @@
   <div id="pane-playlists" style="display:none;">
     <h3>Playlists</h3>
     <form onsubmit="createPl(event)" style="display:flex;gap:8px;margin-bottom:12px;">
-      <input name="name" placeholder="Nom playlist" required>
-      <button type="submit">Créer</button>
+      <input name="name" placeholder="Playlist name" required>
+      <button type="submit">Create</button>
     </form>
     <table class="tracks">
       <thead><tr><th>Nom</th><th style="text-align:right;">Actions</th></tr></thead>
@@ -95,8 +99,8 @@
       <tr>
         <td><input style="width:100%" value="{{ p.name }}" onchange="renamePlInput({{ p.id }}, this.value)"></td>
         <td style="text-align:right;white-space:nowrap;">
-          <button onclick="loadPlTracks({{ p.id }})">Voir</button>
-          <button onclick="deletePl({{ p.id }})">Suppr</button>
+          <button onclick="loadPlTracks({{ p.id }})">View</button>
+          <button onclick="deletePl({{ p.id }})">Delete</button>
         </td>
       </tr>
       {% endfor %}
@@ -105,21 +109,46 @@
     <div id="pl-tracks-area"></div>
   </div>
 
+  <div id="pane-import" style="display:none;">
+    <h3>Import</h3>
+    <div style="display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap;" id="import-tab-bar">
+      <button class="tab active" onclick="importTab('direct', this)">Import from URL</button>
+      <button class="tab" onclick="importTab('file', this)">Import from file</button>
+    </div>
+    <div id="import-tab-direct" class="import-tab">
+      <p class="muted">Direct URL to an audio file.</p>
+      <form id="import-form">
+        <input type="url" id="import-url" placeholder="https://example.com/song.mp3" required style="width:100%">
+        <button type="submit">Import</button>
+      </form>
+      <div id="import-status" class="muted" style="margin:8px 0;"></div>
+    </div>
+    <div id="import-tab-file" class="import-tab" style="display:none;">
+      <p class="muted">Select one or more MP3 files.</p>
+      <form id="file-import-form">
+        <input type="file" id="file-input" accept=".mp3,audio/mpeg" multiple required>
+        <button type="submit">Import</button>
+      </form>
+      <div id="file-import-status" class="muted" style="margin:8px 0;"></div>
+    </div>
+    <div id="plugin-import-tabs"></div>
+  </div>
+
   <div id="pane-dups" style="display:none;">
-    <h3>Doublons détectés</h3>
+    <h3>Duplicates detected</h3>
     {% if not duplicates %}
-      <p class="muted">Aucun doublon.</p>
+      <p class="muted">No duplicates.</p>
     {% endif %}
     {% for d in duplicates %}
     <div class="dup" style="margin-bottom:12px;">
       <strong>{{ d.title }}</strong> — {{ d.artist or '—' }}
       <table class="tracks" style="margin-top:8px;">
-        <thead><tr><th>Chemin</th><th style="text-align:right;">Action</th></tr></thead>
+        <thead><tr><th>Path</th><th style="text-align:right;">Action</th></tr></thead>
         <tbody>
         {% for t in d.tracks %}
         <tr>
           <td>{{ t.path }}</td>
-          <td style="text-align:right;"><button onclick="deleteTrack({{ t.id }})">Suppr</button></td>
+          <td style="text-align:right;"><button onclick="deleteTrack({{ t.id }})">Delete</button></td>
         </tr>
         {% endfor %}
         </tbody>
@@ -143,20 +172,37 @@ function updateBulkActions(){
   const any=[...document.querySelectorAll('.sel-cb')].some(c=>c.checked);
   document.getElementById('bulk-actions').style.display=any?'block':'none';
 }
+async function renameArtist(oldName, newName){
+  if(!newName || !newName.trim()) return;
+  const fd=new FormData(); fd.append('old',oldName); fd.append('new',newName.trim());
+  await fetch('/api/artists/rename',{method:'POST',body:fd});
+}
+async function renameAlbum(oldName, newName){
+  if(!newName || !newName.trim()) return;
+  const fd=new FormData(); fd.append('old',oldName); fd.append('new',newName.trim());
+  await fetch('/api/albums/rename',{method:'POST',body:fd});
+}
 async function deleteSelected(){
   const ids=[...document.querySelectorAll('.sel-cb:checked')].map(c=>c.value);
-  if(!ids.length){ alert('Aucune sélection'); return; }
-  if(!confirm('Supprimer '+ids.length+' piste(s) ?')) return;
+  if(!ids.length){ alert('No selection'); return; }
+  if(!confirm('Delete '+ids.length+' track(s) ?')) return;
   for(const id of ids){
     await fetch(`/api/tracks/${id}`,{method:'DELETE'});
   }
+  location.reload();
+}
+async function cleanupOrphans(){
+  if(!confirm('Remove tracks whose files no longer exist?')) return;
+  const r=await fetch('/api/cleanup',{method:'POST'});
+  const d=await r.json();
+  alert('Removed '+d.removed+' orphan track(s)');
   location.reload();
 }
 async function openDetails(id){
   const panel=document.getElementById('details-panel');
   const content=document.getElementById('details-content');
   if(!panel||!content) return;
-  content.innerHTML='<p class="muted">Chargement…</p>';
+  content.innerHTML='<p class="muted">Loading…</p>';
   panel.classList.add('open');
   try{
     const r=await fetch(`/api/tracks/${id}`);
@@ -164,7 +210,7 @@ async function openDetails(id){
     const dur=t.duration? (Math.floor(t.duration/60)+':'+String(Math.floor(t.duration%60)).padStart(2,'0')):'—';
     content.innerHTML=`
       <img src="/cover/${t.id}" alt="" style="width:100%;margin-bottom:12px;border:2px solid var(--border);">
-      <h3>Détails</h3>
+      <h3>Details</h3>
       <div style="margin-bottom:8px;">
         <label class="muted" style="display:block;margin-bottom:4px;">Titre</label>
         <input id="d-title" value="${escapeHtml(t.title||'')}" style="width:100%;">
@@ -177,15 +223,15 @@ async function openDetails(id){
         <label class="muted" style="display:block;margin-bottom:4px;">Album</label>
         <input id="d-album" value="${escapeHtml(t.album||'')}" style="width:100%;">
       </div>
-      <div class="row"><span>Durée</span><span>${dur}</span></div>
-      <div class="row"><span>Chemin</span><span style="font-size:10px;word-break:break-all;">${escapeHtml(t.path)}</span></div>
+      <div class="row"><span>Duration</span><span>${dur}</span></div>
+      <div class="row"><span>Path</span><span style="font-size:10px;word-break:break-all;">${escapeHtml(t.path)}</span></div>
       <div style="margin-top:12px;display:flex;gap:8px;flex-wrap:wrap;">
-        <button onclick="saveDetails(${t.id})">Sauvegarder</button>
-        <button onclick="searchCoverDetails(${t.id})">Rechercher pochette</button>
-        <label style="cursor:pointer;border:2px solid var(--border);padding:8px 12px;display:inline-block;">Importer pochette <input type="file" accept="image/*" onchange="uploadCoverDetails(${t.id}, this)" style="display:none;"></label>
+        <button onclick="saveDetails(${t.id})">Save</button>
+        <button onclick="searchCoverDetails(${t.id})">Search cover</button>
+        <label style="cursor:pointer;border:2px solid var(--border);padding:8px 12px;display:inline-block;">Import cover <input type="file" accept="image/*" onchange="uploadCoverDetails(${t.id}, this)" style="display:none;"></label>
       </div>
       <div id="cover-search-results" style="margin-top:8px;"></div>`;
-  }catch(e){ content.innerHTML='<p class="muted">Erreur</p>'; }
+  }catch(e){ content.innerHTML='<p class="muted">Error</p>'; }
 }
 function closeDetails(){
   const panel=document.getElementById('details-panel');
@@ -198,7 +244,7 @@ async function saveDetails(id){
   fd.append('album', document.getElementById('d-album').value);
   fd.append('write_tags_flag','0');
   await fetch(`/api/tracks/${id}/edit`,{method:'POST',body:fd});
-  alert('Sauvegardé');
+  alert('Saved');
   location.reload();
 }
 async function searchCoverDetails(id){
@@ -206,20 +252,20 @@ async function searchCoverDetails(id){
   const data=await r.json();
   const res=data.results||[];
   const box=document.getElementById('cover-search-results');
-  if(!res.length){ box.innerHTML='<p class="muted">Aucune pochette trouvée</p>'; return; }
+  if(!res.length){ box.innerHTML='<p class="muted">No cover found</p>'; return; }
   box.innerHTML=res.map((x,i)=>`<div style="margin:4px 0;"><img src="${x.image_url}" style="width:80px;vertical-align:middle;margin-right:8px;"><button onclick="applyCoverDetails(${id},'${x.image_url}')">Appliquer</button></div>`).join('');
 }
 async function applyCoverDetails(id,url){
   const fd=new FormData(); fd.append('image_url',url);
   await fetch(`/api/tracks/${id}/cover`,{method:'POST',body:fd});
-  alert('Pochette appliquée');
+  alert('Cover applied');
   openDetails(id);
 }
 async function uploadCoverDetails(id,input){
   if(!input.files.length) return;
   const fd=new FormData(); fd.append('file',input.files[0]);
   await fetch(`/api/tracks/${id}/cover`,{method:'POST',body:fd});
-  alert('Pochette importée');
+  alert('Cover imported');
   openDetails(id);
 }
 function escapeHtml(s){ return String(s).replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
@@ -229,6 +275,8 @@ function gTab(name){
   document.getElementById('pane-albums').style.display = name==='albums'?'block':'none';
   document.getElementById('pane-playlists').style.display = name==='playlists'?'block':'none';
   document.getElementById('pane-dups').style.display = name==='dups'?'block':'none';
+  document.getElementById('pane-import').style.display = name==='import'?'block':'none';
+  if(name==='import') loadPluginImportTabs();
   document.querySelectorAll('.tab').forEach(b=>b.classList.remove('active'));
   event.target.classList.add('active');
 }
@@ -239,7 +287,7 @@ async function addTrackManual(e){
   const data=await r.json();
   const s=document.getElementById('add-track-status');
   if(data.error){ s.textContent=data.error; return; }
-  s.textContent='Ajouté (#'+data.id+')';
+  s.textContent='Added (#'+data.id+')';
   location.reload();
 }
 async function updateField(id,field,val){
@@ -254,7 +302,7 @@ async function updateField(id,field,val){
   await fetch(`/api/tracks/${id}/edit`,{method:'POST',body:fd});
 }
 async function deleteTrack(id){
-  if(!confirm('Supprimer ?')) return;
+  if(!confirm('Deleteimer ?')) return;
   await fetch(`/api/tracks/${id}`,{method:'DELETE'});
   location.reload();
 }
@@ -277,7 +325,7 @@ async function renamePlInput(id, name){
   await fetch(`/api/playlists/${id}`,{method:'PUT',body:fd});
 }
 async function deletePl(id){
-  if(!confirm('Supprimer ?')) return;
+  if(!confirm('Deleteimer ?')) return;
   await fetch(`/api/playlists/${id}`,{method:'DELETE'});
   location.reload();
 }
@@ -285,7 +333,7 @@ async function loadPlTracks(id){
   const r=await fetch(`/api/playlists/${id}/tracks.json`);
   const tracks=await r.json();
   const area=document.getElementById('pl-tracks-area');
-  area.innerHTML='<ol id="pl-tracks-'+id+'">'+tracks.map(t=>`<li data-track-id="${t.id}">${t.title||t.path} — ${t.artist||'—'} <button onclick="removeFromPlaylist(${id},${t.id})">retirer</button></li>`).join('')+'</ol>';
+  area.innerHTML='<ol id="pl-tracks-'+id+'">'+tracks.map(t=>`<li data-track-id="${t.id}">${t.title||t.path} — ${t.artist||'—'} <button onclick="removeFromPlaylist(${id},${t.id})">remove</button></li>`).join('')+'</ol>';
 }
 async function removeFromPlaylist(plId, trackId){
   await fetch(`/api/playlists/${plId}/tracks/${trackId}`,{method:'DELETE'});
@@ -295,10 +343,70 @@ async function searchCoverGestion(id){
   const r=await fetch(`/api/tracks/${id}/covers`);
   const data=await r.json();
   const res=data.results||[];
-  if(!res.length){ alert('Aucune pochette'); return; }
+  if(!res.length){ alert('No cover found'); return; }
   const fd=new FormData(); fd.append('image_url',res[0].image_url);
   await fetch(`/api/tracks/${id}/cover`,{method:'POST',body:fd});
-  alert('Pochette appliquée');
+  alert('Cover applied');
+}
+</script>
+<script src="/static/js/import.js"></script>
+<script>
+document.addEventListener('submit', async function(e){
+  if(e.target && e.target.id==='file-import-form'){
+    e.preventDefault();
+    const input=document.getElementById('file-input');
+    const status=document.getElementById('file-import-status');
+    if(!input.files.length){ status.textContent='No files selected'; return; }
+    status.textContent='Importing...';
+    const fd=new FormData();
+    for(const f of input.files) fd.append('files', f);
+    const r=await fetch('/api/import/files',{method:'POST',body:fd});
+    const data=await r.json();
+    if(data.error){ status.textContent='Error: '+data.error; return; }
+    status.textContent='Imported '+data.results.length+' file(s)';
+    setTimeout(()=>location.reload(),800);
+  }
+});
+async function loadPluginImportTabs(){
+  const bar=document.getElementById('import-tab-bar');
+  const container=document.getElementById('plugin-import-tabs');
+  if(!bar||!container) return;
+  if(container.dataset.loaded) return;
+  container.dataset.loaded='1';
+  try{
+    const r=await fetch('/api/import/plugin-tabs');
+    const tabs=await r.json();
+    for(const t of tabs){
+      // tab button
+      const btn=document.createElement('button');
+      btn.className='tab';
+      btn.textContent=t.label;
+      btn.onclick=function(){ importTab(t.id, this); };
+      bar.appendChild(btn);
+      // content container (hidden by default)
+      const div=document.createElement('div');
+      div.id='import-tab-'+t.id;
+      div.className='import-tab';
+      div.style.display='none';
+      div.setAttribute('hx-get', t.content_url);
+      div.setAttribute('hx-trigger', 'load');
+      div.setAttribute('hx-swap', 'innerHTML');
+      container.appendChild(div);
+      htmx.process(div);
+    }
+  }catch(e){ console.error(e); }
+}
+function importTab(name, btn){
+  document.querySelectorAll('#pane-import .import-tab').forEach(d=>d.style.display='none');
+  const direct=document.getElementById('import-tab-direct');
+  if(direct) direct.style.display = name==='direct'?'block':'none';
+  const fileTab=document.getElementById('import-tab-file');
+  if(fileTab) fileTab.style.display = name==='file'?'block':'none';
+  document.querySelectorAll('#pane-import .import-tab').forEach(d=>{
+    if(d.id==='import-tab-'+name) d.style.display='block';
+  });
+  document.querySelectorAll('#import-tab-bar .tab').forEach(b=>b.classList.remove('active'));
+  if(btn) btn.classList.add('active');
 }
 </script>
 {% endblock %}

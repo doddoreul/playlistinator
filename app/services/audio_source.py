@@ -18,16 +18,16 @@ MAX_DEFAULT = 50 * 1024 * 1024
 def validate_url(url: str) -> tuple[bool, str]:
     """Valide une URL (scheme http/https, host présent). Renvoie (ok, message)."""
     if not url or not isinstance(url, str):
-        return False, "URL vide"
+        return False, "Empty URL"
     url = url.strip()
     try:
         p = urlparse(url)
     except Exception:
         return False, "URL invalide"
     if p.scheme not in ("http", "https"):
-        return False, "Schéma non supporté (http/https attendu)"
+        return False, "Unsupported scheme (http/https expected)"
     if not p.netloc:
-        return False, "Hôte manquant"
+        return False, "Missing host"
     # protection basique : pas de localhost/loopback pour éviter SSRF ? On garde permissif mais log.
     return True, "ok"
 
@@ -65,9 +65,9 @@ class DirectUrlSource(AudioSource):
             if content_type and content_type not in ("audio/mpeg", "audio/mp3", "application/octet-stream"):
                 # on accepte octet-stream si extension .mp3
                 if not url.lower().endswith(".mp3"):
-                    raise ValueError(f"Format non supporté : {content_type}")
+                    raise ValueError(f"Unsupported format: {content_type}")
             if content_length is not None and content_length > max_size:
-                raise ValueError("Fichier trop gros")
+                raise ValueError("File too large")
 
             # Nom de fichier depuis l'URL
             name = os.path.basename(urlparse(url).path) or "import.mp3"
@@ -92,12 +92,12 @@ class DirectUrlSource(AudioSource):
                 ct = resp.headers.get("content-type", "").split(";")[0].strip().lower()
                 if ct and ct not in ("audio/mpeg", "audio/mp3", "application/octet-stream"):
                     if not url.lower().endswith(".mp3"):
-                        raise ValueError(f"Format non supporté : {ct}")
+                        raise ValueError(f"Unsupported format: {ct}")
                 cl = resp.headers.get("content-length")
                 if cl and cl.isdigit():
                     total = int(cl)
                     if total > max_size:
-                        raise ValueError("Fichier trop gros")
+                        raise ValueError("File too large")
                 with open(dest, "wb") as f:
                     async for chunk in resp.aiter_bytes(chunk_size=65536):
                         f.write(chunk)
@@ -108,7 +108,7 @@ class DirectUrlSource(AudioSource):
                                 dest.unlink()
                             except Exception:
                                 pass
-                            raise ValueError("Fichier trop gros")
+                            raise ValueError("File too large")
                         if progress_cb is not None:
                             progress_cb(downloaded, total)
             return dest

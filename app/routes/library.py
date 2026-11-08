@@ -67,8 +67,13 @@ def _albums(q: str = "") -> list[dict]:
     return [{"name": r["name"], "artist": r["artist"], "count": r["count"]} for r in rows]
 
 
+@router.get("/home", response_class=HTMLResponse)
+def home_page(request: Request):
+    return templates.TemplateResponse(request, "home.html", {})
+
+
 @router.get("/", response_class=HTMLResponse)
-def home(request: Request):
+def library_page(request: Request):
     tracks = _tracks()
     playlists = _list_playlists()
     return templates.TemplateResponse(request, "index.html", {
@@ -113,7 +118,7 @@ def edit_track(track_id: int, title: str = Form(""), artist: str = Form(""), alb
     with conn_ctx() as c:
         row = c.execute("SELECT * FROM tracks WHERE id=?", (track_id,)).fetchone()
         if not row:
-            return JSONResponse({"error": "introuvable"}, status_code=404)
+            return JSONResponse({"error": "not found"}, status_code=404)
         c.execute(
             "UPDATE tracks SET title=?, artist=?, album=? WHERE id=?",
             (title or None, artist or None, album or None, track_id),
@@ -127,14 +132,28 @@ def edit_track(track_id: int, title: str = Form(""), artist: str = Form(""), alb
     return JSONResponse({"ok": True})
 
 
+@router.get("/api/tracks/ids")
+def track_ids():
+    with conn_ctx() as c:
+        rows = c.execute("SELECT id FROM tracks").fetchall()
+    return JSONResponse([r["id"] for r in rows])
+
+
 @router.get("/api/tracks/{track_id}")
 def track_detail(track_id: int):
     with conn_ctx() as c:
         row = c.execute("SELECT * FROM tracks WHERE id=?", (track_id,)).fetchone()
     if not row:
-        return JSONResponse({"error": "introuvable"}, status_code=404)
+        return JSONResponse({"error": "not found"}, status_code=404)
     from ..models import Track
     return JSONResponse(Track.from_row(row).to_dict())
+
+
+@router.post("/api/cleanup")
+def cleanup():
+    from ..services.scanner import cleanup_orphans
+    n = cleanup_orphans()
+    return JSONResponse({"removed": n})
 
 
 @router.delete("/api/tracks/{track_id}")

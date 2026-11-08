@@ -1,8 +1,9 @@
-"""Plugin d'import YouTube via yt-dlp (vidéos et playlists)."""
+"""Plugin d'import YouTube via yt-dlp (vidéos, playlists, albums)."""
 from __future__ import annotations
 
 import asyncio
 import logging
+import re
 import uuid
 from pathlib import Path
 
@@ -16,14 +17,10 @@ log = logging.getLogger("playlistinator.youtube")
 _jobs: dict = {}
 
 
-import re as _re
-
-
 def _safe_name(s: str) -> str:
     s = (s or "").strip()
-    # supprime les caractères invalides pour un nom de fichier
-    s = _re.sub(r'[<>:"/\\\\|?*]', "", s)
-    s = _re.sub(r"\s+", " ", s).strip(". ")
+    s = re.sub(r'[<>:"/\\\\|?*]', "", s)
+    s = re.sub(r"\s+", " ", s).strip(". ")
     if not s:
         s = "video"
     return s[:120]
@@ -41,6 +38,18 @@ def _thumb_url(info: dict) -> str | None:
 
 def _artist(info: dict) -> str | None:
     return info.get("artist") or info.get("uploader") or info.get("channel")
+
+
+def _download_thumb(url: str, dest: Path) -> bool:
+    try:
+        with httpx.Client(timeout=20.0, follow_redirects=True) as c:
+            r = c.get(url)
+            r.raise_for_status()
+            dest.write_bytes(r.content)
+        return True
+    except Exception as e:
+        log.warning("thumbnail erreur: %s", e)
+        return False
 
 
 def _trim_artist_from_title(title: str | None, artist: str | None) -> str | None:
@@ -68,34 +77,19 @@ def _trim_artist_from_title(title: str | None, artist: str | None) -> str | None
 def _clean_title(title: str | None) -> str | None:
     if not title:
         return title
-    import re as _re
     t = title
-    # retire les mentions officielles / clips
     patterns = [
         r"\(?\[?\s*(official\s*(music\s*)?video|official\s*audio|clip\s*officiel|lyric\s*video|audio\s*officiel|official)\s*\)?\]?",
         r"\(?\[?\s*(hd|4k|remaster(ed)?|visualizer)\s*\)?\]?",
     ]
     for pat in patterns:
-        t = _re.sub(pat, "", t, flags=_re.IGNORECASE)
-    # nettoie espaces et séparateurs orphelins
-    t = _re.sub(r"\s{2,}", " ", t).strip(" -–—:|/")
+        t = re.sub(pat, "", t, flags=re.IGNORECASE)
+    t = re.sub(r"\s{2,}", " ", t).strip(" -–—:|/")
     t = t.strip()
     return t or title
 
 
-def _download_thumb(url: str, dest: Path) -> bool:
-    try:
-        with httpx.Client(timeout=20.0, follow_redirects=True) as c:
-            r = c.get(url)
-            r.raise_for_status()
-            dest.write_bytes(r.content)
-        return True
-    except Exception as e:
-        log.warning("thumbnail erreur: %s", e)
-        return False
-
-
-def _download_one(url: str, media_dir: Path) -> tuple[Path, str | None, str | None, str | None]:
+def _download_one(url: str, media_dir: Path):
     opts = {
         "format": "bestaudio/best",
         "outtmpl": str(media_dir / "%(id)s.%(ext)s"),
@@ -113,8 +107,7 @@ def _download_one(url: str, media_dir: Path) -> tuple[Path, str | None, str | No
         if candidates:
             final = candidates[0]
     if not final.exists():
-        raise RuntimeError("fichier mp3 introuvable après téléchargement")
-    # renomme en nom lisible (titre nettoyé)
+        raise RuntimeError("mp3 file not found after download")
     raw_title = info.get("title") or info.get("id") or "video"
     trimmed = _trim_artist_from_title(raw_title, _artist(info)) or raw_title
     safe = _safe_name(trimmed)
@@ -130,7 +123,7 @@ def _download_one(url: str, media_dir: Path) -> tuple[Path, str | None, str | No
     return final, info.get("title"), _artist(info), _thumb_url(info)
 
 
-def _download_playlist(url: str, media_dir: Path) -> tuple[str, list[tuple[Path, str | None, str | None, str | None]]]:
+def _download_playlist(url: str, media_dir: Path):
     before = set(media_dir.glob("*.mp3"))
     title = "Playlist YouTube"
     opts = {
@@ -149,7 +142,6 @@ def _download_playlist(url: str, media_dir: Path) -> tuple[str, list[tuple[Path,
         entries = list(info.get("entries") or [])
     after = set(media_dir.glob("*.mp3"))
     new_files = sorted(after - before, key=lambda p: p.stat().st_mtime)
-    # map entries -> files by _filename if available, else by order
     mapped = False
     paths_by_entry = []
     for e in entries:
@@ -161,14 +153,13 @@ def _download_playlist(url: str, media_dir: Path) -> tuple[str, list[tuple[Path,
                 mapped = True
     if not mapped or len(paths_by_entry) != len(entries):
         paths_by_entry = new_files
-    results: list[tuple[Path, str | None, str | None, str | None]] = []
+    results = []
     for i, e in enumerate(entries):
         if not isinstance(e, dict):
             continue
         path = paths_by_entry[i] if i < len(paths_by_entry) else None
         if path is None or not path.exists():
             continue
-        # renomme en nom lisible (titre nettoyé)
         raw_title = e.get("title") or e.get("id") or "video"
         trimmed = _trim_artist_from_title(raw_title, _artist(e)) or raw_title
         safe = _safe_name(trimmed)
@@ -188,7 +179,7 @@ def _download_playlist(url: str, media_dir: Path) -> tuple[str, list[tuple[Path,
     return title, results
 
 
-async def _apply_metadata(tid: int, title: str | None, artist: str | None, thumb_url: str | None, media_dir: Path, album: str | None = None):
+async def _apply_metadata(tid, title, artist, thumb_url, media_dir, album=None):
     from app.database import conn_ctx
     from app.config import get_config
     cfg = get_config()
@@ -201,7 +192,6 @@ async def _apply_metadata(tid: int, title: str | None, artist: str | None, thumb
         if ok:
             cover_path = str(dest.resolve())
     with conn_ctx() as c:
-        row = c.execute("SELECT title, artist, cover_path, album FROM tracks WHERE id=?", (tid,)).fetchone()
         updates = []
         params = []
         if title:
@@ -223,7 +213,7 @@ async def _apply_metadata(tid: int, title: str | None, artist: str | None, thumb
             c.execute(f"UPDATE tracks SET {', '.join(updates)} WHERE id=?", params)
 
 
-async def _run_job(job_id: str, mode: str, urls: list[str], media_dir: Path):
+async def _run_job(job_id, mode, urls, media_dir):
     job = _jobs[job_id]
     job["total"] = len(urls)
     job["current"] = 0
@@ -249,14 +239,12 @@ async def _run_job(job_id: str, mode: str, urls: list[str], media_dir: Path):
                     with conn_ctx() as c:
                         dup = c.execute("SELECT id FROM tracks WHERE file_hash=?", (h,)).fetchone()
                     if dup:
-                        # ne pas supprimer le fichier, prévenir l'utilisateur
                         dup_count += 1
                     else:
                         tid = await asyncio.to_thread(index_file, path)
                         album_name = title if mode == "album" else None
                         await _apply_metadata(tid, title_v, artist, thumb, media_dir, album=album_name)
                         tids.append(tid)
-                # créer une playlist dans le logiciel (mode playlist uniquement)
                 if mode == "playlist" and tids:
                     from app.database import conn_ctx as _cc
                     with _cc() as c:
@@ -266,7 +254,7 @@ async def _run_job(job_id: str, mode: str, urls: list[str], media_dir: Path):
                         for tid in tids:
                             c.execute("INSERT INTO playlist_tracks (playlist_id, track_id, position) VALUES (?,?,?)", (pid, tid, pos))
                             pos += 1
-                msg = "doublon détecté, merci de vérifier manuellement via la section doublons" if dup_count else None
+                msg = "Duplicate detected, please check manually in the Duplicates section" if dup_count else None
                 entry = {"url": url, "ok": True, "count": len(items), "track_ids": tids, "playlist": title if mode == "playlist" else None, "album": title if mode == "album" else None, "duplicates": dup_count, "error": msg}
                 job["results"].append(entry)
                 job["log"].append(entry)
@@ -276,7 +264,7 @@ async def _run_job(job_id: str, mode: str, urls: list[str], media_dir: Path):
                 job["results"].append(entry)
                 job["log"].append(entry)
         else:
-            job["status"] = f"téléchargement {i}/{len(urls)}"
+            job["status"] = f"downloading {i}/{len(urls)}"
             try:
                 path, title_v, artist, thumb = await asyncio.to_thread(_download_one, url, media_dir)
                 from app.services.metadata import file_hash
@@ -285,8 +273,7 @@ async def _run_job(job_id: str, mode: str, urls: list[str], media_dir: Path):
                 with conn_ctx() as c:
                     dup = c.execute("SELECT id FROM tracks WHERE file_hash=?", (h,)).fetchone()
                 if dup:
-                    # ne pas supprimer le fichier, prévenir l'utilisateur
-                    entry = {"url": url, "ok": False, "error": "doublon détecté, merci de vérifier manuellement via la section doublons", "duplicate_id": dup["id"]}
+                    entry = {"url": url, "ok": False, "error": "Duplicate detected, please check manually in the Duplicates section", "duplicate_id": dup["id"]}
                     job["results"].append(entry)
                     job["log"].append(entry)
                 else:
@@ -300,7 +287,7 @@ async def _run_job(job_id: str, mode: str, urls: list[str], media_dir: Path):
                 entry = {"url": url, "ok": False, "error": str(e)}
                 job["results"].append(entry)
                 job["log"].append(entry)
-    job["status"] = "terminé"
+    job["status"] = "done"
     job["done"] = True
 
 
@@ -333,10 +320,10 @@ def register(app, context):
             return JSONResponse({"error": "aucune URL"}, status_code=400)
         if mode not in ("videos", "playlist", "album"):
             mode = "videos"
-        if mode == "playlist":
+        if mode in ("playlist", "album"):
             lines = [lines[0]]
         jid = uuid.uuid4().hex
-        _jobs[jid] = {"id": jid, "status": "démarrage", "current": 0, "total": len(lines), "done": False, "results": [], "mode": mode}
+        _jobs[jid] = {"id": jid, "status": "starting", "current": 0, "total": len(lines), "done": False, "results": [], "log": [], "mode": mode}
         asyncio.create_task(_run_job(jid, mode, lines, media_dir))
         return JSONResponse({"job_id": jid})
 
@@ -349,4 +336,4 @@ def register(app, context):
 
     app.include_router(router, prefix="/plugins/youtube", tags=["youtube"])
     if "register_import_tab" in context:
-        context["register_import_tab"]({"id": "youtube", "label": "YouTube", "content_url": "/plugins/youtube/import-tab"})
+        context["register_import_tab"]({"id": "youtube", "label": "Import from YouTube", "content_url": "/plugins/youtube/import-tab"})

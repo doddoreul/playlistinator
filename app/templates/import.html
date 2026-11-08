@@ -1,34 +1,59 @@
 {% extends "base.html" %}
-{% block title %}Importer - Playlistinator{% endblock %}
+{% block title %}Import from URL - Playlistinator{% endblock %}
 {% block content %}
 <div>
-  <h2>Importer une musique</h2>
+  <h2>Import a track</h2>
   <div style="display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap;">
-    <button class="tab active" onclick="importTab('direct')">URL directe</button>
+    <button class="tab active" onclick="importTab('direct', this)">Direct URL</button>
+    <button class="tab" onclick="importTab('file', this)">Import from file</button>
     {% for t in import_tabs %}
-    <button class="tab" onclick="importTab('{{ t.id }}')">{{ t.label }}</button>
+    <button class="tab" onclick="importTab('{{ t.id }}', this)">{{ t.label }}</button>
     {% endfor %}
   </div>
   <div id="tab-direct" class="import-tab">
-    <p class="muted">URL directe vers un fichier audio (.mp3).</p>
+    <p class="muted">Direct URL to an audio file (.mp3).</p>
     <form id="import-form">
-      <input type="url" id="import-url" placeholder="https://exemple.com/titre.mp3" required style="width:100%">
-      <button type="submit">Importer</button>
+      <input type="url" id="import-url" placeholder="https://example.com/song.mp3" required style="width:100%">
+      <button type="submit">Import</button>
     </form>
     <div id="import-status"></div>
+  </div>
+  <div id="tab-file" class="import-tab" style="display:none;">
+    <p class="muted">Select one or more MP3 files.</p>
+    <form id="file-import-form">
+      <input type="file" id="file-input" accept=".mp3,audio/mpeg" multiple required>
+      <button type="submit">Import</button>
+    </form>
+    <div id="file-import-status" class="muted" style="margin:8px 0;"></div>
   </div>
   {% for t in import_tabs %}
   <div id="tab-{{ t.id }}" class="import-tab" style="display:none;" hx-get="{{ t.content_url }}" hx-trigger="load" hx-swap="innerHTML"></div>
   {% endfor %}
+  <script src="/static/js/import.js"></script>
+  <script>
+  document.addEventListener('submit', async function(e){
+    if(e.target && e.target.id==='file-import-form'){
+      e.preventDefault();
+      const input=document.getElementById('file-input');
+      const status=document.getElementById('file-import-status');
+      if(!input.files.length){ status.textContent='No files selected'; return; }
+      status.textContent='Importing...';
+      const fd=new FormData();
+      for(const f of input.files) fd.append('files', f);
+      const r=await fetch('/api/import/files',{method:'POST',body:fd});
+      const data=await r.json();
+      if(data.error){ status.textContent='Error: '+data.error; return; }
+      status.textContent='Imported '+data.results.length+' file(s)';
+      setTimeout(()=>location.reload(),800);
+    }
+  });
+  function importTab(name, btn){
+    document.querySelectorAll('.import-tab').forEach(d=>d.style.display='none');
+    const el=document.getElementById('tab-'+name);
+    if(el) el.style.display='block';
+    document.querySelectorAll('.tab').forEach(b=>b.classList.remove('active'));
+    if(btn) btn.classList.add('active');
+  }
+  </script>
 </div>
-<script src="/static/js/import.js"></script>
-<script>
-function importTab(name){
-  document.querySelectorAll('.import-tab').forEach(d=>d.style.display='none');
-  const el=document.getElementById('tab-'+name);
-  if(el) el.style.display='block';
-  document.querySelectorAll('.tab').forEach(b=>b.classList.remove('active'));
-  if(event && event.target) event.target.classList.add('active');
-}
-</script>
 {% endblock %}

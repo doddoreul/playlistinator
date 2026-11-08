@@ -73,7 +73,7 @@ async def run_import(jid: str, source: Optional[AudioSource] = None) -> None:
             if dup is not None:
                 # ne pas supprimer le fichier, prévenir l'utilisateur
                 job["status"] = "duplicate"
-                job["error"] = "doublon détecté, merci de vérifier manuellement via la section doublons"
+                job["error"] = "Duplicate detected, please check manually in the Duplicates section"
                 job["track_id"] = dup["id"]
                 job["done"] = True
                 return

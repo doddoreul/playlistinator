@@ -1,38 +1,37 @@
 # Plugins Playlistinator
 
-Chaque plugin est un dossier dans `plugins/` contenant un fichier `plugin.py`
-(ou `__init__.py`), ou un fichier `.py` directement dans `plugins/`.
+Each plugin is a folder in `plugins/` containing a `plugin.py` (or `__init__.py`), or a `.py` file directly in `plugins/`.
 
-## Interface minimale
+## Minimal interface
 
 ```python
 def register(app, context):
-    # context contient : app, config, templates, db, services
+    # context contains: app, config, templates, db, services
     ...
 ```
 
-## Règle d'import
+## Provided context
 
-Tout fichier importé par un plugin doit être placé dans `context["config"].media_dir`
-(le même dossier que pour un import normal), puis indexé via `context["services"]["scanner"].index_file(path)`.
+- `context["app"]`: FastAPI instance
+- `context["config"]`: configuration
+- `context["templates"]`: Jinja2Templates
+- `context["db"]`: conn_ctx, get_conn, init_db
+- `context["services"]`: audio_source, covers, importer, metadata, scanner
 
-## Contexte fourni
+## Import rule
 
-- `context["app"]` : instance FastAPI
-- `context["config"]` : configuration
-- `context["templates"]` : Jinja2Templates
-- `context["db"]` : conn_ctx, get_conn, init_db
-- `context["services"]` : audio_source, covers, importer, metadata, scanner
+Any file imported by a plugin must be placed in `context["config"].media_dir`
+(same folder as a normal import), then indexed via `context["services"]["scanner"].index_file(path)`.
 
-## Dossier personnalisé
+## Custom folder
 
-Définir `PLUGINS_DIR=/chemin/vers/plugins` pour changer l'emplacement.
+Set `PLUGINS_DIR=/path/to/plugins` to change the location.
 
-## Plugins disponibles (non livrés par défaut)
+## Available (not shipped by default)
 
-Des plugins optionnels (ex. YouTube) sont fournis dans `plugins_available/`.
-Pour les activer, copier le dossier dans `plugins/` (ou pointer `PLUGINS_DIR` dessus).
+Optional plugins (e.g. YouTube) are provided in `plugins_available/`.
+To enable, copy the folder into `plugins/` (or point `PLUGINS_DIR` at it).
 
-## Exemple
+## Example
 
-Voir `plugins/example/`. Route exposée : `GET /plugins/example/hello`.
+See `plugins/example/`. Exposed route: `GET /plugins/example/hello`.

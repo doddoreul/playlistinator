@@ -3,20 +3,20 @@
 {% block content %}
 <div>
   <h2>Plugins</h2>
-  <p class="muted">Activer/désactiver les plugins disponibles. L'activation est immédiate ; la désactivation nécessite un redémarrage pour retirer les routes.</p>
+  <p class="muted">Enable/disable available plugins. Activation is immediate; deactivation requires a restart to remove routes.</p>
   <table class="tracks">
-    <thead><tr><th>Nom</th><th>État</th><th>Chargé</th><th></th></tr></thead>
+    <thead><tr><th>Name</th><th>Status</th><th>Loaded</th><th></th></tr></thead>
     <tbody>
     {% for p in plugins %}
     <tr>
       <td>{{ p.name }}</td>
-      <td>{% if p.active %}Actif{% else %}Disponible{% endif %}</td>
-      <td>{% if p.loaded %}Oui{% else %}Non{% endif %}</td>
+      <td>{% if p.active %}Active{% else %}Available{% endif %}</td>
+      <td>{% if p.loaded %}Yes{% else %}No{% endif %}</td>
       <td>
         {% if p.active %}
-        <button onclick="deact('{{ p.name }}')">Désactiver</button>
+        <button onclick="deact('{{ p.name }}')">Deactivate</button>
         {% else %}
-        <button onclick="act('{{ p.name }}')">Activer</button>
+        <button onclick="act('{{ p.name }}')">Activate</button>
         {% endif %}
       </td>
     </tr>

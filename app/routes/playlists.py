@@ -51,7 +51,7 @@ def playlists_partial(request: Request):
 def create_playlist(name: str = Form(...)):
     name = name.strip()
     if not name:
-        return JSONResponse({"error": "nom vide"}, status_code=400)
+        return JSONResponse({"error": "empty name"}, status_code=400)
     with conn_ctx() as c:
         c.execute("INSERT INTO playlists (name) VALUES (?)", (name,))
         pid = c.execute("SELECT last_insert_rowid()").fetchone()[0]
@@ -62,7 +62,7 @@ def create_playlist(name: str = Form(...)):
 def rename_playlist(playlist_id: int, name: str = Form(...)):
     name = name.strip()
     if not name:
-        return JSONResponse({"error": "nom vide"}, status_code=400)
+        return JSONResponse({"error": "empty name"}, status_code=400)
     with conn_ctx() as c:
         c.execute("UPDATE playlists SET name=?, updated_at=datetime('now') WHERE id=?", (name, playlist_id))
     return JSONResponse({"ok": True})

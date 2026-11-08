@@ -64,6 +64,19 @@ def scan_media(patterns: list[str] | None = None) -> dict:
     return {"added": added, "updated": updated, "skipped": skipped, "errors": errors}
 
 
+def cleanup_orphans() -> int:
+    """Supprime les pistes dont le fichier n'existe plus. Renvoie le nombre supprimé."""
+    from pathlib import Path
+    removed = 0
+    with conn_ctx() as c:
+        rows = c.execute("SELECT id, path FROM tracks").fetchall()
+        for r in rows:
+            if not Path(r["path"]).is_file():
+                c.execute("DELETE FROM tracks WHERE id=?", (r["id"],))
+                removed += 1
+    return removed
+
+
 def index_file(path, cfg=None) -> int | None:
     """Indexe un fichier audio déjà présent. Renvoie l'id de la piste (existant ou nouveau), ou None en erreur."""
     from ..config import get_config

@@ -4,7 +4,7 @@
 <div>
   <h2>Playlists</h2>
   {% if not playlists %}
-  <p class="muted">Aucune playlist.</p>
+  <p class="muted">No playlists.</p>
   {% else %}
   <table class="tracks">
     <thead><tr><th>Nom</th><th></th></tr></thead>
@@ -13,8 +13,8 @@
     <tr>
       <td>{{ item.playlist.name }}</td>
       <td style="text-align:right;white-space:nowrap;">
-        <button onclick="openPlaylist({{ item.playlist.id }}, '{{ item.playlist.name|e }}')">Voir</button>
-        <button onclick="playPlaylist({{ item.playlist.id }})">▶ Lire</button>
+        <button onclick="openPlaylist({{ item.playlist.id }}, '{{ item.playlist.name|e }}')">View</button>
+        <button onclick="playPlaylist({{ item.playlist.id }})">▶ Play</button>
       </td>
     </tr>
     {% endfor %}

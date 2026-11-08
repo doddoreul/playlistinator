@@ -78,7 +78,7 @@ def add_track(path: str = Form(...), title: str = Form(""), artist: str = Form("
     with conn_ctx() as c:
         dup = c.execute("SELECT id FROM tracks WHERE file_hash=?", (h,)).fetchone()
         if dup:
-            return JSONResponse({"error": "doublon détecté, merci de vérifier manuellement via la section doublons", "duplicate_id": dup["id"]}, status_code=409)
+            return JSONResponse({"error": "Duplicate detected, please check manually in the Duplicates section", "duplicate_id": dup["id"]}, status_code=409)
         from app.services.metadata import build_metadata
         meta = build_metadata(p)
         c.execute(
@@ -89,12 +89,32 @@ def add_track(path: str = Form(...), title: str = Form(""), artist: str = Form("
     return JSONResponse({"id": tid})
 
 
+@router.post("/api/artists/rename")
+def rename_artist(old: str = Form(...), new: str = Form(...)):
+    new = new.strip()
+    if not new:
+        return JSONResponse({"error": "empty name"}, status_code=400)
+    with conn_ctx() as c:
+        c.execute("UPDATE tracks SET artist=? WHERE artist=?", (new, old))
+    return JSONResponse({"ok": True})
+
+
+@router.post("/api/albums/rename")
+def rename_album(old: str = Form(...), new: str = Form(...)):
+    new = new.strip()
+    if not new:
+        return JSONResponse({"error": "empty name"}, status_code=400)
+    with conn_ctx() as c:
+        c.execute("UPDATE tracks SET album=? WHERE album=?", (new, old))
+    return JSONResponse({"ok": True})
+
+
 @router.post("/api/tracks/{track_id}/cover-search")
 def cover_search(track_id: int):
     with conn_ctx() as c:
         row = c.execute("SELECT artist, title FROM tracks WHERE id=?", (track_id,)).fetchone()
     if not row:
-        return JSONResponse({"error": "introuvable"}, status_code=404)
+        return JSONResponse({"error": "not found"}, status_code=404)
     from app.services.covers import search_cover
     res = search_cover(row["artist"], row["title"])
     return JSONResponse({"results": res})
