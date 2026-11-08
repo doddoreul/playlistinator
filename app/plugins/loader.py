@@ -13,6 +13,7 @@ from ..config import get_config
 log = logging.getLogger("playlistinator.plugins")
 
 _loaded: list[str] = []
+_import_tabs: list[dict] = []
 
 
 def _plugins_dir() -> Path:
@@ -20,6 +21,14 @@ def _plugins_dir() -> Path:
     if env:
         return Path(env).resolve()
     return Path("plugins").resolve()
+
+
+def register_import_tab(tab: dict) -> None:
+    _import_tabs.append(tab)
+
+
+def import_tabs() -> list[dict]:
+    return list(_import_tabs)
 
 
 def build_context(app: Any) -> dict[str, Any]:
@@ -38,6 +47,7 @@ def build_context(app: Any) -> dict[str, Any]:
             "metadata": metadata,
             "scanner": scanner,
         },
+        "register_import_tab": register_import_tab,
     }
 
 

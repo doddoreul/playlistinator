@@ -138,13 +138,17 @@ def register(app, context):
 
     router = APIRouter()
 
-    @router.get("/modal", response_class=HTMLResponse)
-    def modal():
+    @router.get("/import-tab", response_class=HTMLResponse)
+    def import_tab():
         from jinja2 import Environment, FileSystemLoader
         d = Path(__file__).resolve().parent
         env = Environment(loader=FileSystemLoader(str(d)))
         template = env.get_template("youtube_modal.html")
         return HTMLResponse(template.render())
+
+    @router.get("/modal", response_class=HTMLResponse)
+    def modal():
+        return import_tab()
 
     @router.post("/import")
     async def start_import(mode: str = Form("videos"), urls: str = Form(...)):
@@ -169,3 +173,5 @@ def register(app, context):
         return JSONResponse(job)
 
     app.include_router(router, prefix="/plugins/youtube", tags=["youtube"])
+    if "register_import_tab" in context:
+        context["register_import_tab"]({"id": "youtube", "label": "YouTube", "content_url": "/plugins/youtube/import-tab"})

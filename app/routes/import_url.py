@@ -14,7 +14,8 @@ router = APIRouter()
 
 @router.get("/import", response_class=HTMLResponse)
 def import_page(request: Request):
-    return templates.TemplateResponse(request, "import.html")
+    from ..plugins.loader import import_tabs
+    return templates.TemplateResponse(request, "import.html", {"import_tabs": import_tabs()})
 
 
 @router.post("/api/import/url")
