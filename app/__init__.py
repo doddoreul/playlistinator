@@ -24,7 +24,7 @@ _mc = _gc().media_dir
 app.mount("/media", StaticFiles(directory=str(_mc)), name="media")
 
 # routes
-from .routes import library, playlists, import_url, covers, stream, gestion  # noqa: E402
+from .routes import library, playlists, import_url, covers, stream, gestion, plugins_page  # noqa: E402
 
 app.include_router(library.router)
 app.include_router(playlists.router)
@@ -32,6 +32,7 @@ app.include_router(import_url.router)
 app.include_router(covers.router)
 app.include_router(stream.router)
 app.include_router(gestion.router)
+app.include_router(plugins_page.router)
 
 # plugins
 from .plugins.loader import load_plugins

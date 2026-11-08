@@ -1,0 +1,42 @@
+{% extends "base.html" %}
+{% block title %}Plugins - Playlistinator{% endblock %}
+{% block content %}
+<div class="container">
+  <h2>Plugins</h2>
+  <p class="muted">Activer/désactiver les plugins disponibles. L'activation est immédiate ; la désactivation nécessite un redémarrage pour retirer les routes.</p>
+  <table class="tracks">
+    <thead><tr><th>Nom</th><th>État</th><th>Chargé</th><th></th></tr></thead>
+    <tbody>
+    {% for p in plugins %}
+    <tr>
+      <td>{{ p.name }}</td>
+      <td>{% if p.active %}Actif{% else %}Disponible{% endif %}</td>
+      <td>{% if p.loaded %}Oui{% else %}Non{% endif %}</td>
+      <td>
+        {% if p.active %}
+        <button onclick="deact('{{ p.name }}')">Désactiver</button>
+        {% else %}
+        <button onclick="act('{{ p.name }}')">Activer</button>
+        {% endif %}
+      </td>
+    </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  <div id="pl-status" class="muted"></div>
+</div>
+<script>
+async function act(name){
+  const r=await fetch('/api/plugins/'+name+'/activate',{method:'POST'});
+  const d=await r.json();
+  document.getElementById('pl-status').textContent=d.message||'';
+  if(d.ok) setTimeout(()=>location.reload(),800);
+}
+async function deact(name){
+  const r=await fetch('/api/plugins/'+name+'/deactivate',{method:'POST'});
+  const d=await r.json();
+  document.getElementById('pl-status').textContent=d.message||'';
+  if(d.ok) setTimeout(()=>location.reload(),800);
+}
+</script>
+{% endblock %}
