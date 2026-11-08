@@ -114,8 +114,10 @@ def _download_one(url: str, media_dir: Path) -> tuple[Path, str | None, str | No
             final = candidates[0]
     if not final.exists():
         raise RuntimeError("fichier mp3 introuvable après téléchargement")
-    # renomme en nom lisible
-    safe = _safe_name(info.get("title") or info.get("id") or "video")
+    # renomme en nom lisible (titre nettoyé)
+    raw_title = info.get("title") or info.get("id") or "video"
+    trimmed = _trim_artist_from_title(raw_title, _artist(info)) or raw_title
+    safe = _safe_name(trimmed)
     dest = media_dir / (safe + ".mp3")
     if dest != final:
         if dest.exists():
@@ -166,8 +168,10 @@ def _download_playlist(url: str, media_dir: Path) -> tuple[str, list[tuple[Path,
         path = paths_by_entry[i] if i < len(paths_by_entry) else None
         if path is None or not path.exists():
             continue
-        # renomme en nom lisible
-        safe = _safe_name(e.get("title") or e.get("id") or "video")
+        # renomme en nom lisible (titre nettoyé)
+        raw_title = e.get("title") or e.get("id") or "video"
+        trimmed = _trim_artist_from_title(raw_title, _artist(e)) or raw_title
+        safe = _safe_name(trimmed)
         dest = media_dir / (safe + ".mp3")
         if dest != path:
             if dest.exists():

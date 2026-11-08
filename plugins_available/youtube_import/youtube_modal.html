@@ -1,0 +1,72 @@
+<div id="yt-body">
+  <div style="display:flex;gap:8px;margin-bottom:12px;">
+    <button class="tab active" onclick="ytTab('videos', this)" id="tab-videos">Vidéos</button>
+    <button class="tab" onclick="ytTab('playlist', this)" id="tab-playlist">Playlist</button>
+    <button class="tab" onclick="ytTab('album', this)" id="tab-album">Album</button>
+  </div>
+  <div id="pane-videos">
+    <p class="muted">Une URL par ligne.</p>
+    <textarea id="yt-urls" rows="6" style="width:100%"></textarea>
+  </div>
+  <div id="pane-playlist" style="display:none;">
+    <p class="muted">URL d'une playlist YouTube.</p>
+    <input type="url" id="yt-pl-url" style="width:100%" placeholder="https://www.youtube.com/playlist?list=...">
+  </div>
+  <div id="pane-album" style="display:none;">
+    <p class="muted">URL d'une playlist YouTube (sera importée comme album).</p>
+    <input type="url" id="yt-al-url" style="width:100%" placeholder="https://www.youtube.com/playlist?list=...">
+  </div>
+  <div id="yt-loader" style="display:none;" class="loader-overlay"><div class="spinner"></div><div class="muted">Téléchargement en cours…</div></div>
+  <div id="yt-status" class="muted" style="margin:8px 0;"></div>
+  <div id="yt-log" style="max-height:180px;overflow:auto;border:1px solid var(--border);padding:8px;margin-top:8px;font-size:12px;"></div>
+  <button onclick="startYtImport()">Importer</button>
+</div>
+<script>
+let ytMode='videos';
+function escapeHtml(s){ return String(s).replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+function ytTab(mode, btn){
+  ytMode=mode;
+  document.getElementById('pane-videos').style.display = mode==='videos'?'block':'none';
+  document.getElementById('pane-playlist').style.display = mode==='playlist'?'block':'none';
+  document.getElementById('pane-album').style.display = mode==='album'?'block':'none';
+  document.querySelectorAll('#yt-body .tab').forEach(b=>b.classList.remove('active'));
+  if(btn) btn.classList.add('active');
+}
+async function startYtImport(){
+  const status = document.getElementById('yt-status');
+  const body = document.getElementById('yt-body');
+  let urls='';
+  if(ytMode==='videos'){ urls=document.getElementById('yt-urls').value.trim(); }
+  else if(ytMode==='playlist'){ urls=document.getElementById('yt-pl-url').value.trim(); }
+  else { urls=document.getElementById('yt-al-url').value.trim(); }
+  if(!urls){ status.textContent='Aucune URL'; return; }
+  body.querySelector('#pane-videos').style.display='none';
+  body.querySelector('#pane-playlist').style.display='none';
+  body.querySelector('#pane-album').style.display='none';
+  document.getElementById('yt-loader').style.display='block';
+  status.textContent='Démarrage...';
+  const modeVal = ytMode==='playlist'?'playlist':(ytMode==='album'?'album':'videos');
+  const fd = new FormData(); fd.append('mode', modeVal); fd.append('urls', urls);
+  const r = await fetch('/plugins/youtube/import', {method:'POST', body:fd});
+  const data = await r.json();
+  if(data.error){ document.getElementById('yt-loader').style.display='none'; status.textContent='Erreur: '+data.error; return; }
+  const jid = data.job_id;
+  const logEl = document.getElementById('yt-log');
+  const poll = setInterval(async ()=>{
+    const sr = await fetch('/plugins/youtube/status/'+jid);
+    const j = await sr.json();
+    status.textContent = j.status + (j.total? ` (${j.current}/${j.total})` : '') + (j.current_url? ' — ' + j.current_url : '');
+    if(logEl && j.log){
+      logEl.innerHTML = j.log.map(e => `<div>${e.ok?'✓':'✗'} ${escapeHtml(e.url||'')} ${e.error?'- '+escapeHtml(e.error):''} ${e.playlist?'→ playlist: '+escapeHtml(e.playlist):''} ${e.album?'→ album: '+escapeHtml(e.album):''}</div>`).join('');
+    }
+    if(j.done){ clearInterval(poll); document.getElementById('yt-loader').style.display='none';
+      const dup = (j.results||[]).some(x=>x.error && /doublon/i.test(x.error));
+      if(dup) status.textContent='doublon détecté, merci de vérifier manuellement via la section doublons';
+      else status.textContent='Terminé';
+      if(ytMode==='videos') body.querySelector('#pane-videos').style.display='block';
+      else if(ytMode==='playlist') body.querySelector('#pane-playlist').style.display='block';
+      else body.querySelector('#pane-album').style.display='block';
+    }
+  }, 800);
+}
+</script>
