@@ -11,6 +11,11 @@ def register(app, context):
     ...
 ```
 
+## Règle d'import
+
+Tout fichier importé par un plugin doit être placé dans `context["config"].media_dir`
+(le même dossier que pour un import normal), puis indexé via `context["services"]["scanner"].index_file(path)`.
+
 ## Contexte fourni
 
 - `context["app"]` : instance FastAPI

@@ -1,16 +1,7 @@
-<!DOCTYPE html>
-<html lang="fr">
-<head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Gestion - Playlistinator</title>
-<link rel="stylesheet" href="/static/css/app.css">
-<script src="https://unpkg.com/htmx.org@1.9.12"></script>
-</head>
-<body>
-<div class="banner"><span class="banner-track" id="banner-text">Playlistinator</span></div>
+{% extends "base.html" %}
+{% block title %}Gestion - Playlistinator{% endblock %}
+{% block content %}
 <div class="container">
-  <a href="/">← Retour</a>
   <h2>Gestion</h2>
   <div style="display:flex;gap:8px;margin-bottom:12px;">
     <button class="tab active" onclick="gTab('tracks')">Chansons</button>
@@ -102,8 +93,14 @@ async function addTrackManual(e){
   location.reload();
 }
 async function updateField(id,field,val){
-  const fd=new FormData(); fd.append(field,val); fd.append('write_tags_flag','0');
-  // only send changed field; edit endpoint expects title/artist/album all
+  const row=document.querySelector(`tr[data-track-id="${id}"]`);
+  const inputs=row.querySelectorAll('input');
+  const title=field==='title'?val:inputs[0].value;
+  const artist=field==='artist'?val:inputs[1].value;
+  const album=field==='album'?val:inputs[2].value;
+  const fd=new FormData();
+  fd.append('title',title); fd.append('artist',artist); fd.append('album',album);
+  fd.append('write_tags_flag','0');
   await fetch(`/api/tracks/${id}/edit`,{method:'POST',body:fd});
 }
 async function deleteTrack(id){
@@ -149,5 +146,4 @@ async function searchCoverGestion(id){
   alert('Pochette appliquée');
 }
 </script>
-</body>
-</html>
+{% endblock %}
