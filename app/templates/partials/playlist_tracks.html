@@ -1,14 +1,22 @@
 {% if not tracks %}
 <p class="muted">Playlist vide.</p>
 {% else %}
-<ol class="pl-tracks" id="pl-tracks-{{ playlist_id }}">
+<table class="tracks">
+  <thead><tr><th>Titre</th><th>Artiste</th><th>Album</th><th>Durée</th><th></th></tr></thead>
+  <tbody>
   {% for t in tracks %}
-  <li data-track-id="{{ t.id }}" data-title="{{ t.title or t.path }}" data-artist="{{ t.artist or '' }}">
-    {{ t.title or t.path }} — {{ t.artist or '—' }}
-    <button onclick="playTrack({{ t.id }})">▶</button>
-    <button onclick="enqueueTrack({{ t.id }})">+ file</button>
-  </li>
+  <tr data-track-id="{{ t.id }}" data-title="{{ t.title or t.path }}" data-artist="{{ t.artist or '' }}">
+    <td>{{ t.title or t.path }}</td>
+    <td>{{ t.artist or '—' }}</td>
+    <td>{{ t.album or '—' }}</td>
+    <td>{{ (t.duration|int//60) if t.duration else '—' }}:{{ '%02d'|format(t.duration|int%60) if t.duration else '' }}</td>
+    <td>
+      <button onclick="event.stopPropagation(); playTrack({{ t.id }})">▶</button>
+      <button onclick="event.stopPropagation(); enqueueTrack({{ t.id }})">+ file</button>
+    </td>
+  </tr>
   {% endfor %}
-</ol>
-<button onclick="playPlaylist({{ playlist_id }})">Lire la playlist</button>
+  </tbody>
+</table>
+<button onclick="playPlaylist({{ playlist_id }})" style="margin-top:8px;">Lire la playlist</button>
 {% endif %}

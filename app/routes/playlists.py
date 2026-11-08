@@ -34,6 +34,13 @@ def _playlist_tracks(playlist_id: int) -> list[dict]:
     return out
 
 
+@router.get("/playlists", response_class=HTMLResponse)
+def playlists_page(request: Request):
+    pls = _list_playlists()
+    pls_simple = [{"playlist": p} for p in pls]
+    return templates.TemplateResponse(request, "playlists_page.html", {"playlists": pls_simple})
+
+
 @router.get("/api/playlists", response_class=HTMLResponse)
 def playlists_partial(request: Request):
     pls = _list_playlists()

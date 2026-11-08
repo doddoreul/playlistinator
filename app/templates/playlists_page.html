@@ -1,0 +1,31 @@
+{% extends "base.html" %}
+{% block title %}Playlists - Playlistinator{% endblock %}
+{% block content %}
+<div>
+  <h2>Playlists</h2>
+  {% if not playlists %}
+  <p class="muted">Aucune playlist.</p>
+  {% else %}
+  <table class="tracks">
+    <thead><tr><th>Nom</th><th></th></tr></thead>
+    <tbody>
+    {% for item in playlists %}
+    <tr>
+      <td>{{ item.playlist.name }}</td>
+      <td style="text-align:right;white-space:nowrap;">
+        <button onclick="openPlaylist({{ item.playlist.id }}, '{{ item.playlist.name|e }}')">Voir</button>
+        <button onclick="playPlaylist({{ item.playlist.id }})">▶ Lire</button>
+      </td>
+    </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  {% endif %}
+  <div id="playlist-detail" style="margin-top:16px;"></div>
+</div>
+<script>
+function openPlaylist(id, name) {
+  htmx.ajax('GET', `/api/playlists/${id}/tracks`, {target:'#playlist-detail', swap:'innerHTML'});
+}
+</script>
+{% endblock %}

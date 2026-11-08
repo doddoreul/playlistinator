@@ -84,6 +84,36 @@ function enqueueTrack(id) {
   if (!queue.find(t => t.id === id)) queue.push({id, title, artist});
   saveState();
 }
+async function showDetails(id) {
+  const panel = document.getElementById('details-panel');
+  const content = document.getElementById('details-content');
+  if (!panel || !content) return;
+  content.innerHTML = '<p class="muted">Chargement…</p>';
+  panel.classList.add('open');
+  try {
+    const r = await fetch(`/api/tracks/${id}`);
+    const t = await r.json();
+    const dur = t.duration ? (Math.floor(t.duration/60)+':'+String(Math.floor(t.duration%60)).padStart(2,'0')) : '—';
+    content.innerHTML = `
+      <img src="/cover/${t.id}" alt="">
+      <h3>${escapeHtml(t.title || t.path)}</h3>
+      <div class="row"><span>Artiste</span><span>${escapeHtml(t.artist || '—')}</span></div>
+      <div class="row"><span>Album</span><span>${escapeHtml(t.album || '—')}</span></div>
+      <div class="row"><span>Durée</span><span>${dur}</span></div>
+      <div class="row"><span>Chemin</span><span>${escapeHtml(t.path)}</span></div>
+      <div style="margin-top:12px;display:flex;gap:8px;">
+        <button onclick="playTrack(${t.id})">▶ Lire</button>
+        <button onclick="enqueueTrack(${t.id})">+ file</button>
+      </div>`;
+  } catch(e) {
+    content.innerHTML = '<p class="muted">Erreur</p>';
+  }
+}
+function closeDetails() {
+  const panel = document.getElementById('details-panel');
+  if (panel) panel.classList.remove('open');
+}
+function escapeHtml(s){ return String(s).replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
 function searchCovers(id) {
   fetch(`/api/tracks/${id}/covers`).then(r=>r.json()).then(data=>{
     const res = data.results || [];

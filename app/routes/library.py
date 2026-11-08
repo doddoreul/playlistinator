@@ -90,6 +90,16 @@ def edit_track(track_id: int, title: str = Form(""), artist: str = Form(""), alb
     return JSONResponse({"ok": True})
 
 
+@router.get("/api/tracks/{track_id}")
+def track_detail(track_id: int):
+    with conn_ctx() as c:
+        row = c.execute("SELECT * FROM tracks WHERE id=?", (track_id,)).fetchone()
+    if not row:
+        return JSONResponse({"error": "introuvable"}, status_code=404)
+    from ..models import Track
+    return JSONResponse(Track.from_row(row).to_dict())
+
+
 @router.delete("/api/tracks/{track_id}")
 def delete_track(track_id: int):
     with conn_ctx() as c:

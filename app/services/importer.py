@@ -71,10 +71,7 @@ async def run_import(jid: str, source: Optional[AudioSource] = None) -> None:
         with conn_ctx() as c:
             dup = c.execute("SELECT id FROM tracks WHERE file_hash = ?", (h,)).fetchone()
             if dup is not None:
-                try:
-                    path.unlink()
-                except Exception:
-                    pass
+                # ne pas supprimer le fichier, prévenir l'utilisateur
                 job["status"] = "duplicate"
                 job["error"] = "doublon détecté, merci de vérifier manuellement via la section doublons"
                 job["track_id"] = dup["id"]

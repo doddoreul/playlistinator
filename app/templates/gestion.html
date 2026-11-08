@@ -1,16 +1,16 @@
 {% extends "base.html" %}
 {% block title %}Gestion - Playlistinator{% endblock %}
 {% block content %}
-<div class="container">
+<div>
   <h2>Gestion</h2>
   <div style="display:flex;gap:8px;margin-bottom:12px;">
-    <button class="tab active" onclick="gTab('tracks')">Chansons</button>
+    <button class="tab active" onclick="gTab('musiques')">Musiques</button>
     <button class="tab" onclick="gTab('playlists')">Playlists</button>
     <button class="tab" onclick="gTab('dups')">Doublons</button>
   </div>
 
-  <div id="pane-tracks">
-    <h3>Ajouter une chanson (chemin local)</h3>
+  <div id="pane-musiques">
+    <h3>Ajouter une musique (chemin local)</h3>
     <form onsubmit="addTrackManual(event)" style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px;">
       <input name="path" placeholder="/chemin/fichier.mp3" required style="flex:2">
       <input name="title" placeholder="Titre">
@@ -24,10 +24,10 @@
       <tbody>
       {% for t in tracks %}
       <tr data-track-id="{{ t.id }}">
-        <td><input value="{{ t.title or '' }}" onchange="updateField({{ t.id }},'title',this.value)"></td>
-        <td><input value="{{ t.artist or '' }}" onchange="updateField({{ t.id }},'artist',this.value)"></td>
-        <td><input value="{{ t.album or '' }}" onchange="updateField({{ t.id }},'album',this.value)"></td>
-        <td>
+        <td><input style="width:100%;min-width:360px" value="{{ t.title or '' }}" onchange="updateField({{ t.id }},'title',this.value)"></td>
+        <td><input style="width:100%" value="{{ t.artist or '' }}" onchange="updateField({{ t.id }},'artist',this.value)"></td>
+        <td><input style="width:100%" value="{{ t.album or '' }}" onchange="updateField({{ t.id }},'album',this.value)"></td>
+        <td style="text-align:right;white-space:nowrap;">
           <button onclick="deleteTrack({{ t.id }})">Suppr</button>
           <button onclick="searchCoverGestion({{ t.id }})">Pochette</button>
         </td>
@@ -43,16 +43,20 @@
       <input name="name" placeholder="Nom playlist" required>
       <button type="submit">Créer</button>
     </form>
-    <ul class="playlists">
+    <table class="tracks">
+      <thead><tr><th>Nom</th><th style="text-align:right;">Actions</th></tr></thead>
+      <tbody>
       {% for p in playlists %}
-      <li>
-        <span>{{ p.name }}</span>
-        <button onclick="loadPlTracks({{ p.id }})">Voir</button>
-        <button onclick="renamePl({{ p.id }})">Renommer</button>
-        <button onclick="deletePl({{ p.id }})">Suppr</button>
-      </li>
+      <tr>
+        <td><input style="width:100%" value="{{ p.name }}" onchange="renamePlInput({{ p.id }}, this.value)"></td>
+        <td style="text-align:right;white-space:nowrap;">
+          <button onclick="loadPlTracks({{ p.id }})">Voir</button>
+          <button onclick="deletePl({{ p.id }})">Suppr</button>
+        </td>
+      </tr>
       {% endfor %}
-    </ul>
+      </tbody>
+    </table>
     <div id="pl-tracks-area"></div>
   </div>
 
@@ -62,13 +66,19 @@
       <p class="muted">Aucun doublon.</p>
     {% endif %}
     {% for d in duplicates %}
-    <div class="dup">
+    <div class="dup" style="margin-bottom:12px;">
       <strong>{{ d.title }}</strong> — {{ d.artist or '—' }}
-      <ul>
+      <table class="tracks" style="margin-top:8px;">
+        <thead><tr><th>Chemin</th><th style="text-align:right;">Action</th></tr></thead>
+        <tbody>
         {% for t in d.tracks %}
-        <li>{{ t.path }} <button onclick="deleteTrack({{ t.id }})">Suppr</button></li>
+        <tr>
+          <td>{{ t.path }}</td>
+          <td style="text-align:right;"><button onclick="deleteTrack({{ t.id }})">Suppr</button></td>
+        </tr>
         {% endfor %}
-      </ul>
+        </tbody>
+      </table>
     </div>
     {% endfor %}
   </div>
@@ -76,7 +86,7 @@
 
 <script>
 function gTab(name){
-  document.getElementById('pane-tracks').style.display = name==='tracks'?'block':'none';
+  document.getElementById('pane-musiques').style.display = name==='musiques'?'block':'none';
   document.getElementById('pane-playlists').style.display = name==='playlists'?'block':'none';
   document.getElementById('pane-dups').style.display = name==='dups'?'block':'none';
   document.querySelectorAll('.tab').forEach(b=>b.classList.remove('active'));
@@ -120,6 +130,11 @@ async function renamePl(id){
   const fd=new FormData(); fd.append('name',name);
   await fetch(`/api/playlists/${id}`,{method:'PUT',body:fd});
   location.reload();
+}
+async function renamePlInput(id, name){
+  if(!name || !name.trim()) return;
+  const fd=new FormData(); fd.append('name',name.trim());
+  await fetch(`/api/playlists/${id}`,{method:'PUT',body:fd});
 }
 async function deletePl(id){
   if(!confirm('Supprimer ?')) return;

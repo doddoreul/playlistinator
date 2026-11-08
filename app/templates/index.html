@@ -7,4 +7,8 @@
     </div>
     <div id="modal-container"></div>
     <div id="main-content" hx-get="/api/tracks" hx-trigger="load" hx-swap="innerHTML"></div>
+    <aside id="details-panel" class="details-panel">
+      <button class="details-close" onclick="closeDetails()">✕</button>
+      <div id="details-content"></div>
+    </aside>
 {% endblock %}
