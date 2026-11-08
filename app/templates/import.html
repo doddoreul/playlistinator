@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Importer - Playlistinator</title>
+<link rel="stylesheet" href="/static/css/app.css">
+<script src="https://unpkg.com/htmx.org@1.9.12"></script>
+</head>
+<body>
+<div class="container">
+  <a href="/">← Retour</a>
+  <h2>Importer une musique</h2>
+  <p class="muted">URL directe vers un fichier audio (.mp3).</p>
+  <form id="import-form">
+    <input type="url" id="import-url" placeholder="https://exemple.com/titre.mp3" required style="width:100%">
+    <button type="submit">Importer</button>
+  </form>
+  <div id="import-status"></div>
+</div>
+<script src="/static/js/import.js"></script>
+</body>
+</html>

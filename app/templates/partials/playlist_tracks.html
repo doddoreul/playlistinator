@@ -1,0 +1,13 @@
+{% if not tracks %}
+<p class="muted">Playlist vide.</p>
+{% else %}
+<ol class="pl-tracks" id="pl-tracks-{{ playlist_id }}">
+  {% for t in tracks %}
+  <li data-track-id="{{ t.id }}" draggable="true">
+    {{ t.title or t.path }} — {{ t.artist or '—' }}
+    <button onclick="removeFromPlaylist({{ playlist_id }}, {{ t.id }})">retirer</button>
+  </li>
+  {% endfor %}
+</ol>
+<button onclick="playPlaylist({{ playlist_id }})">Lire la playlist</button>
+{% endif %}

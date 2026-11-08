@@ -1,0 +1,13 @@
+{% if not playlists %}
+<p class="muted">Aucune playlist.</p>
+{% else %}
+<ul class="playlists">
+  {% for p in playlists %}
+  <li>
+    <a href="#" onclick="openPlaylist({{ p.id }}, '{{ p.name|e }}'); return false;">{{ p.name }}</a>
+    <button onclick="renamePlaylist({{ p.id }})">✎</button>
+    <button onclick="deletePlaylist({{ p.id }})">✕</button>
+  </li>
+  {% endfor %}
+</ul>
+{% endif %}

@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Playlistinator</title>
+<link rel="stylesheet" href="/static/css/app.css">
+<script src="https://unpkg.com/htmx.org@1.9.12"></script>
+</head>
+<body>
+<div class="layout">
+  <aside class="sidebar">
+    <h1 class="logo">Playlistinator</h1>
+    <nav>
+      <a href="#" hx-get="/api/tracks" hx-target="#main-content" hx-swap="innerHTML">Bibliothèque</a>
+      <a href="/import" hx-boost="true">Importer</a>
+    </nav>
+    <div class="playlists-header">
+      <span>Playlists</span>
+      <button onclick="createPlaylist()">+</button>
+    </div>
+    <div id="playlists" hx-get="/api/playlists" hx-trigger="load" hx-swap="innerHTML"></div>
+  </aside>
+
+  <main class="main">
+    <div class="toolbar">
+      <input type="search" id="search" placeholder="Rechercher titre ou artiste..." oninput="searchTracks(this.value)">
+      <button onclick="scanLibrary()">Scanner media/</button>
+      <button hx-get="/plugins/youtube/modal" hx-target="#modal-container" hx-swap="innerHTML">Ajouter via YouTube</button>
+    </div>
+    <div id="modal-container"></div>
+    <div id="main-content" hx-get="/api/tracks" hx-trigger="load" hx-swap="innerHTML"></div>
+  </main>
+</div>
+
+<div class="player-bar" id="player-bar">
+  <img id="player-cover" src="/static/img/placeholder.svg" alt="">
+  <div class="player-meta">
+    <div id="player-title">—</div>
+    <div id="player-artist" class="muted"></div>
+  </div>
+  <div class="player-controls">
+    <button onclick="prevTrack()">⏮</button>
+    <button onclick="togglePlay()" id="play-btn">▶</button>
+    <button onclick="nextTrack()">⏭</button>
+  </div>
+  <input type="range" id="progress" min="0" max="1000" value="0" oninput="seek(this.value)">
+  <span id="time" class="muted">0:00</span>
+  <input type="range" id="volume" min="0" max="1" step="0.01" value="0.8" oninput="setVolume(this.value)">
+</div>
+
+<audio id="audio" preload="metadata"></audio>
+
+<script src="/static/js/player.js"></script>
+<script src="/static/js/app.js"></script>
+</body>
+</html>
