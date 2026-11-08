@@ -5,15 +5,14 @@
   <thead><tr><th>Titre</th><th>Artiste</th><th>Album</th><th>Durée</th><th></th></tr></thead>
   <tbody>
   {% for t in tracks %}
-  <tr data-track-id="{{ t.id }}" draggable="true">
+  <tr data-track-id="{{ t.id }}" data-title="{{ t.title or t.path }}" data-artist="{{ t.artist or '' }}">
     <td>{{ t.title or t.path }}</td>
     <td>{{ t.artist or '—' }}</td>
     <td>{{ t.album or '—' }}</td>
     <td>{{ (t.duration|int//60) if t.duration else '—' }}:{{ '%02d'|format(t.duration|int%60) if t.duration else '' }}</td>
     <td>
       <button onclick="playTrack({{ t.id }})">▶</button>
-      <button onclick="editTrack({{ t.id }})">Éditer</button>
-      <button onclick="searchCovers({{ t.id }})">Pochette</button>
+      <button onclick="enqueueTrack({{ t.id }})">+ file</button>
     </td>
   </tr>
   {% endfor %}

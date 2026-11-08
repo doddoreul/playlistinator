@@ -77,6 +77,13 @@ document.addEventListener('drop', (e) => {
 });
 document.addEventListener('dragover', (e) => { if (e.target.closest('ol.pl-tracks')) e.preventDefault(); });
 
+function enqueueTrack(id) {
+  const row = document.querySelector(`tr[data-track-id="${id}"]`);
+  const title = row ? row.dataset.title : '';
+  const artist = row ? row.dataset.artist : '';
+  if (!queue.find(t => t.id === id)) queue.push({id, title, artist});
+  saveState();
+}
 function searchCovers(id) {
   fetch(`/api/tracks/${id}/covers`).then(r=>r.json()).then(data=>{
     const res = data.results || [];

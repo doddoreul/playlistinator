@@ -1,6 +1,8 @@
 <div class="modal" id="yt-modal" style="position:fixed;inset:0;background:rgba(0,0,0,.6);display:flex;align-items:center;justify-content:center;z-index:1000;">
-  <div style="background:var(--panel);padding:20px;border-radius:8px;max-width:560px;width:92%;">
+  <div style="background:var(--panel);padding:20px;border:3px solid var(--accent);max-width:560px;width:92%;">
     <h3>Importer via YouTube</h3>
+    <div id="yt-loader" style="display:none;" class="loader-overlay"><div class="spinner"></div><div class="muted">Téléchargement en cours…</div></div>
+    <div id="yt-body">
     <div style="display:flex;gap:8px;margin-bottom:12px;">
       <button onclick="ytTab('videos')" id="tab-videos">Vidéos</button>
       <button onclick="ytTab('playlist')" id="tab-playlist">Playlist</button>
@@ -12,6 +14,7 @@
     <div id="pane-playlist" style="display:none;">
       <p class="muted">URL d'une playlist YouTube.</p>
       <input type="url" id="yt-pl-url" style="width:100%" placeholder="https://www.youtube.com/playlist?list=...">
+    </div>
     </div>
     <div id="yt-status" class="muted" style="margin:8px 0;"></div>
     <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:8px;">
@@ -30,21 +33,31 @@ function ytTab(mode){
 function closeYtModal(){ document.getElementById('yt-modal').remove(); }
 async function startYtImport(){
   const status = document.getElementById('yt-status');
+  const body = document.getElementById('yt-body');
   let urls='';
   if(ytMode==='videos'){ urls=document.getElementById('yt-urls').value.trim(); }
   else { urls=document.getElementById('yt-pl-url').value.trim(); }
   if(!urls){ status.textContent='Aucune URL'; return; }
+  // masquer le contenu et afficher le loader
+  body.style.display='none';
+  const loader = document.getElementById('yt-loader');
+  loader.style.display='block';
   status.textContent='Démarrage...';
   const fd = new FormData(); fd.append('mode', ytMode==='playlist'?'playlist':'videos'); fd.append('urls', urls);
   const r = await fetch('/plugins/youtube/import', {method:'POST', body:fd});
   const data = await r.json();
-  if(data.error){ status.textContent='Erreur: '+data.error; return; }
+  if(data.error){ loader.style.display='none'; body.style.display='block'; status.textContent='Erreur: '+data.error; return; }
   const jid = data.job_id;
   const poll = setInterval(async ()=>{
     const sr = await fetch('/plugins/youtube/status/'+jid);
     const j = await sr.json();
     status.textContent = j.status + (j.total? ` (${j.current}/${j.total})` : '');
-    if(j.done){ clearInterval(poll); htmx.trigger('#main-content','load'); }
+    if(j.done){ clearInterval(poll); loader.style.display='none'; body.style.display='block';
+      const dup = (j.results||[]).some(x=>x.error && /doublon/i.test(x.error));
+      if(dup) status.textContent='Doublon détecté, merci de vérifier manuellement via la section doublons';
+      else status.textContent='Terminé';
+      htmx.trigger('#main-content','load');
+    }
   }, 800);
 }
 </script>

@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Gestion - Playlistinator</title>
+<link rel="stylesheet" href="/static/css/app.css">
+<script src="https://unpkg.com/htmx.org@1.9.12"></script>
+</head>
+<body>
+<div class="banner"><span class="banner-track" id="banner-text">Playlistinator</span></div>
+<div class="container">
+  <a href="/">← Retour</a>
+  <h2>Gestion</h2>
+  <div style="display:flex;gap:8px;margin-bottom:12px;">
+    <button class="tab active" onclick="gTab('tracks')">Chansons</button>
+    <button class="tab" onclick="gTab('playlists')">Playlists</button>
+    <button class="tab" onclick="gTab('dups')">Doublons</button>
+  </div>
+
+  <div id="pane-tracks">
+    <h3>Ajouter une chanson (chemin local)</h3>
+    <form onsubmit="addTrackManual(event)" style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px;">
+      <input name="path" placeholder="/chemin/fichier.mp3" required style="flex:2">
+      <input name="title" placeholder="Titre">
+      <input name="artist" placeholder="Artiste">
+      <input name="album" placeholder="Album">
+      <button type="submit">Ajouter</button>
+    </form>
+    <div id="add-track-status" class="muted"></div>
+    <table class="tracks">
+      <thead><tr><th>Titre</th><th>Artiste</th><th>Album</th><th></th></tr></thead>
+      <tbody>
+      {% for t in tracks %}
+      <tr data-track-id="{{ t.id }}">
+        <td><input value="{{ t.title or '' }}" onchange="updateField({{ t.id }},'title',this.value)"></td>
+        <td><input value="{{ t.artist or '' }}" onchange="updateField({{ t.id }},'artist',this.value)"></td>
+        <td><input value="{{ t.album or '' }}" onchange="updateField({{ t.id }},'album',this.value)"></td>
+        <td>
+          <button onclick="deleteTrack({{ t.id }})">Suppr</button>
+          <button onclick="searchCoverGestion({{ t.id }})">Pochette</button>
+        </td>
+      </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  <div id="pane-playlists" style="display:none;">
+    <h3>Playlists</h3>
+    <form onsubmit="createPl(event)" style="display:flex;gap:8px;margin-bottom:12px;">
+      <input name="name" placeholder="Nom playlist" required>
+      <button type="submit">Créer</button>
+    </form>
+    <ul class="playlists">
+      {% for p in playlists %}
+      <li>
+        <span>{{ p.name }}</span>
+        <button onclick="loadPlTracks({{ p.id }})">Voir</button>
+        <button onclick="renamePl({{ p.id }})">Renommer</button>
+        <button onclick="deletePl({{ p.id }})">Suppr</button>
+      </li>
+      {% endfor %}
+    </ul>
+    <div id="pl-tracks-area"></div>
+  </div>
+
+  <div id="pane-dups" style="display:none;">
+    <h3>Doublons détectés</h3>
+    {% if not duplicates %}
+      <p class="muted">Aucun doublon.</p>
+    {% endif %}
+    {% for d in duplicates %}
+    <div class="dup">
+      <strong>{{ d.title }}</strong> — {{ d.artist or '—' }}
+      <ul>
+        {% for t in d.tracks %}
+        <li>{{ t.path }} <button onclick="deleteTrack({{ t.id }})">Suppr</button></li>
+        {% endfor %}
+      </ul>
+    </div>
+    {% endfor %}
+  </div>
+</div>
+
+<script>
+function gTab(name){
+  document.getElementById('pane-tracks').style.display = name==='tracks'?'block':'none';
+  document.getElementById('pane-playlists').style.display = name==='playlists'?'block':'none';
+  document.getElementById('pane-dups').style.display = name==='dups'?'block':'none';
+  document.querySelectorAll('.tab').forEach(b=>b.classList.remove('active'));
+  event.target.classList.add('active');
+}
+async function addTrackManual(e){
+  e.preventDefault();
+  const fd=new FormData(e.target);
+  const r=await fetch('/api/tracks',{method:'POST',body:fd});
+  const data=await r.json();
+  const s=document.getElementById('add-track-status');
+  if(data.error){ s.textContent=data.error; return; }
+  s.textContent='Ajouté (#'+data.id+')';
+  location.reload();
+}
+async function updateField(id,field,val){
+  const fd=new FormData(); fd.append(field,val); fd.append('write_tags_flag','0');
+  // only send changed field; edit endpoint expects title/artist/album all
+  await fetch(`/api/tracks/${id}/edit`,{method:'POST',body:fd});
+}
+async function deleteTrack(id){
+  if(!confirm('Supprimer ?')) return;
+  await fetch(`/api/tracks/${id}`,{method:'DELETE'});
+  location.reload();
+}
+async function createPl(e){
+  e.preventDefault();
+  const fd=new FormData(e.target);
+  await fetch('/api/playlists',{method:'POST',body:fd});
+  location.reload();
+}
+async function renamePl(id){
+  const name=prompt('Nouveau nom ?');
+  if(!name) return;
+  const fd=new FormData(); fd.append('name',name);
+  await fetch(`/api/playlists/${id}`,{method:'PUT',body:fd});
+  location.reload();
+}
+async function deletePl(id){
+  if(!confirm('Supprimer ?')) return;
+  await fetch(`/api/playlists/${id}`,{method:'DELETE'});
+  location.reload();
+}
+async function loadPlTracks(id){
+  const r=await fetch(`/api/playlists/${id}/tracks.json`);
+  const tracks=await r.json();
+  const area=document.getElementById('pl-tracks-area');
+  area.innerHTML='<ol id="pl-tracks-'+id+'">'+tracks.map(t=>`<li data-track-id="${t.id}">${t.title||t.path} — ${t.artist||'—'} <button onclick="removeFromPlaylist(${id},${t.id})">retirer</button></li>`).join('')+'</ol>';
+}
+async function removeFromPlaylist(plId, trackId){
+  await fetch(`/api/playlists/${plId}/tracks/${trackId}`,{method:'DELETE'});
+  loadPlTracks(plId);
+}
+async function searchCoverGestion(id){
+  const r=await fetch(`/api/tracks/${id}/covers`);
+  const data=await r.json();
+  const res=data.results||[];
+  if(!res.length){ alert('Aucune pochette'); return; }
+  const fd=new FormData(); fd.append('image_url',res[0].image_url);
+  await fetch(`/api/tracks/${id}/cover`,{method:'POST',body:fd});
+  alert('Pochette appliquée');
+}
+</script>
+</body>
+</html>

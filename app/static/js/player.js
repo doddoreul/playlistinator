@@ -1,8 +1,9 @@
 const audio = document.getElementById('audio');
 let queue = [];
 let queueIndex = 0;
-let repeatMode = 0; // 0 none, 1 one, 2 all
+let repeatMode = 0;
 let shuffle = false;
+let currentTrackId = null;
 
 function loadState() {
   try {
@@ -19,7 +20,6 @@ function saveState() {
   const s = { queue, index: queueIndex, trackId: currentTrackId, position: audio.currentTime, volume: audio.volume };
   localStorage.setItem('playerState', JSON.stringify(s));
 }
-let currentTrackId = null;
 
 function setAudioSrc(trackId, pos) {
   currentTrackId = trackId;
@@ -28,25 +28,35 @@ function setAudioSrc(trackId, pos) {
   updatePlayerMeta(trackId);
 }
 
-async function updatePlayerMeta(trackId) {
-  // fetch track info from a simple endpoint? We'll store in queue objects.
-  const t = findTrack(trackId);
-  if (t) {
-    document.getElementById('player-title').textContent = t.title || t.path;
-    document.getElementById('player-artist').textContent = t.artist || '';
-    const cover = document.getElementById('player-cover');
-    cover.src = `/cover/${trackId}`;
-  }
-}
-
 function findTrack(id) {
   return queue.find(t => t.id === id) || null;
 }
 
+function updatePlayerMeta(trackId) {
+  const t = findTrack(trackId);
+  if (t) {
+    document.getElementById('player-title').textContent = t.title || t.path;
+    document.getElementById('player-artist').textContent = t.artist || '';
+  }
+  document.getElementById('player-cover').src = `/cover/${trackId}`;
+  updateBanner(trackId);
+}
+
+function updateBanner(trackId) {
+  const t = findTrack(trackId);
+  const now = t ? (t.title || t.path) : '—';
+  let next = '—';
+  if (queue.length > 1) {
+    const idx = queue.findIndex(x => x.id === trackId);
+    const ni = idx >= 0 ? (idx + 1) % queue.length : (queueIndex + 1) % queue.length;
+    const nt = queue[ni];
+    if (nt && nt.id !== trackId) next = nt.title || nt.path;
+  }
+  const el = document.getElementById('banner-text');
+  if (el) el.textContent = `Now playing: ${now}   ·   Next: ${next}`;
+}
+
 function playTrack(id) {
-  // if not in queue, build queue from current track list? Add single.
-  const trackObj = { id };
-  // try to enrich from DOM? We'll just play; meta fetched lazily.
   currentTrackId = id;
   setAudioSrc(id, 0);
   audio.play();
@@ -88,9 +98,7 @@ function seek(val) {
 function setVolume(v) { audio.volume = parseFloat(v); saveState(); }
 
 audio.addEventListener('timeupdate', () => {
-  if (audio.duration) {
-    document.getElementById('progress').value = (audio.currentTime/audio.duration)*1000;
-  }
+  if (audio.duration) document.getElementById('progress').value = (audio.currentTime/audio.duration)*1000;
   document.getElementById('time').textContent = fmt(audio.currentTime);
   saveState();
 });
@@ -100,7 +108,6 @@ audio.addEventListener('ended', () => {
 });
 function fmt(s) { const m = Math.floor(s/60); const sec = Math.floor(s%60); return m+':'+String(sec).padStart(2,'0'); }
 
-// keyboard shortcuts
 document.addEventListener('keydown', (e) => {
   if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
   if (e.code === 'Space') { e.preventDefault(); togglePlay(); }

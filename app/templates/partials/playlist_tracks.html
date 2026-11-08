@@ -3,9 +3,10 @@
 {% else %}
 <ol class="pl-tracks" id="pl-tracks-{{ playlist_id }}">
   {% for t in tracks %}
-  <li data-track-id="{{ t.id }}" draggable="true">
+  <li data-track-id="{{ t.id }}" data-title="{{ t.title or t.path }}" data-artist="{{ t.artist or '' }}">
     {{ t.title or t.path }} — {{ t.artist or '—' }}
-    <button onclick="removeFromPlaylist({{ playlist_id }}, {{ t.id }})">retirer</button>
+    <button onclick="playTrack({{ t.id }})">▶</button>
+    <button onclick="enqueueTrack({{ t.id }})">+ file</button>
   </li>
   {% endfor %}
 </ol>

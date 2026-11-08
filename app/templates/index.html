@@ -8,25 +8,25 @@
 <script src="https://unpkg.com/htmx.org@1.9.12"></script>
 </head>
 <body>
+<div class="banner"><span class="banner-track" id="banner-text">Playlistinator — Now playing: — , Next: —</span></div>
 <div class="layout">
   <aside class="sidebar">
-    <h1 class="logo">Playlistinator</h1>
+    <h1>Playlistinator</h1>
     <nav>
       <a href="#" hx-get="/api/tracks" hx-target="#main-content" hx-swap="innerHTML">Bibliothèque</a>
+      <a href="#" hx-get="/api/playlists" hx-target="#main-content" hx-swap="innerHTML">Playlists</a>
+      <a href="/gestion" hx-boost="true">Gestion</a>
       <a href="/import" hx-boost="true">Importer</a>
     </nav>
-    <div class="playlists-header">
-      <span>Playlists</span>
-      <button onclick="createPlaylist()">+</button>
-    </div>
+    <div class="playlists-header"><span>Playlists</span></div>
     <div id="playlists" hx-get="/api/playlists" hx-trigger="load" hx-swap="innerHTML"></div>
   </aside>
 
   <main class="main">
     <div class="toolbar">
-      <input type="search" id="search" placeholder="Rechercher titre ou artiste..." oninput="searchTracks(this.value)">
-      <button onclick="scanLibrary()">Scanner media/</button>
-      <button hx-get="/plugins/youtube/modal" hx-target="#modal-container" hx-swap="innerHTML">Ajouter via YouTube</button>
+      <input type="search" id="search" placeholder="Rechercher..." oninput="searchTracks(this.value)">
+      <button onclick="scanLibrary()">Scanner</button>
+      <button hx-get="/plugins/youtube/modal" hx-target="#modal-container" hx-swap="innerHTML">YouTube</button>
     </div>
     <div id="modal-container"></div>
     <div id="main-content" hx-get="/api/tracks" hx-trigger="load" hx-swap="innerHTML"></div>

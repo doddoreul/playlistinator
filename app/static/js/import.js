@@ -20,7 +20,7 @@ document.getElementById('import-form').addEventListener('submit', async (e) => {
     if (j.done) {
       clearInterval(poll);
       if (j.status === 'done') status.textContent = 'Import terminé (piste #' + j.track_id + ')';
-      else if (j.status === 'duplicate') status.textContent = 'Doublon détecté';
+      else if (j.status === 'duplicate') status.textContent = 'doublon détecté, merci de vérifier manuellement via la section doublons';
       else status.textContent = 'Erreur: ' + (j.error || '');
     }
   }, 500);

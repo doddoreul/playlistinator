@@ -76,7 +76,7 @@ async def run_import(jid: str, source: Optional[AudioSource] = None) -> None:
                 except Exception:
                     pass
                 job["status"] = "duplicate"
-                job["error"] = "Doublon détecté"
+                job["error"] = "doublon détecté, merci de vérifier manuellement via la section doublons"
                 job["track_id"] = dup["id"]
                 job["done"] = True
                 return

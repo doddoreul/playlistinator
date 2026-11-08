@@ -69,10 +69,24 @@ async def _run_job(job_id: str, mode: str, urls: list[str], media_dir: Path):
             try:
                 paths = await asyncio.to_thread(_download_playlist, url, media_dir)
                 tids = []
+                dup_count = 0
                 for p in paths:
-                    tid = await asyncio.to_thread(index_file, p)
-                    tids.append(tid)
-                job["results"].append({"url": url, "ok": True, "count": len(paths), "track_ids": tids})
+                    from app.services.metadata import file_hash
+                    from app.database import conn_ctx
+                    h = await asyncio.to_thread(file_hash, p)
+                    with conn_ctx() as c:
+                        dup = c.execute("SELECT id FROM tracks WHERE file_hash=?", (h,)).fetchone()
+                    if dup:
+                        try:
+                            p.unlink()
+                        except Exception:
+                            pass
+                        dup_count += 1
+                    else:
+                        tid = await asyncio.to_thread(index_file, p)
+                        tids.append(tid)
+                msg = "doublon détecté, merci de vérifier manuellement via la section doublons" if dup_count else None
+                job["results"].append({"url": url, "ok": True, "count": len(paths), "track_ids": tids, "duplicates": dup_count, "error": msg})
             except Exception as e:
                 log.warning("YouTube playlist erreur %s: %s", url, e)
                 job["results"].append({"url": url, "ok": False, "error": str(e)})
@@ -80,8 +94,20 @@ async def _run_job(job_id: str, mode: str, urls: list[str], media_dir: Path):
             job["status"] = f"téléchargement {i}/{len(urls)}"
             try:
                 path = await asyncio.to_thread(_download_one, url, media_dir, True)
-                tid = await asyncio.to_thread(index_file, path)
-                job["results"].append({"url": url, "ok": True, "track_id": tid})
+                from app.services.metadata import file_hash
+                from app.database import conn_ctx
+                h = await asyncio.to_thread(file_hash, path)
+                with conn_ctx() as c:
+                    dup = c.execute("SELECT id FROM tracks WHERE file_hash=?", (h,)).fetchone()
+                if dup:
+                    try:
+                        path.unlink()
+                    except Exception:
+                        pass
+                    job["results"].append({"url": url, "ok": False, "error": "doublon détecté, merci de vérifier manuellement via la section doublons", "duplicate_id": dup["id"]})
+                else:
+                    tid = await asyncio.to_thread(index_file, path)
+                    job["results"].append({"url": url, "ok": True, "track_id": tid})
             except Exception as e:
                 log.warning("YouTube import erreur %s: %s", url, e)
                 job["results"].append({"url": url, "ok": False, "error": str(e)})
