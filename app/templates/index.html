@@ -26,7 +26,6 @@
     <div class="toolbar">
       <input type="search" id="search" placeholder="Rechercher..." oninput="searchTracks(this.value)">
       <button onclick="scanLibrary()">Scanner</button>
-      <button hx-get="/plugins/youtube/modal" hx-target="#modal-container" hx-swap="innerHTML">YouTube</button>
     </div>
     <div id="modal-container"></div>
     <div id="main-content" hx-get="/api/tracks" hx-trigger="load" hx-swap="innerHTML"></div>

@@ -23,6 +23,11 @@ def register(app, context):
 
 Définir `PLUGINS_DIR=/chemin/vers/plugins` pour changer l'emplacement.
 
+## Plugins disponibles (non livrés par défaut)
+
+Des plugins optionnels (ex. YouTube) sont fournis dans `plugins_available/`.
+Pour les activer, copier le dossier dans `plugins/` (ou pointer `PLUGINS_DIR` dessus).
+
 ## Exemple
 
 Voir `plugins/example/`. Route exposée : `GET /plugins/example/hello`.

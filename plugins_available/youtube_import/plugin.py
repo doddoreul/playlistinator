@@ -37,8 +37,9 @@ def _download_one(url: str, media_dir: Path, noplaylist: bool = True) -> Path:
     return final
 
 
-def _download_playlist(url: str, media_dir: Path) -> list[Path]:
+def _download_playlist(url: str, media_dir: Path) -> tuple[str, list[Path]]:
     before = set(media_dir.glob("*.mp3"))
+    title = "Playlist YouTube"
     opts = {
         "format": "bestaudio/best",
         "outtmpl": str(media_dir / "%(playlist_index)s - %(title)s.%(ext)s"),
@@ -49,9 +50,11 @@ def _download_playlist(url: str, media_dir: Path) -> list[Path]:
         "ignoreerrors": True,
     }
     with yt_dlp.YoutubeDL(opts) as ydl:
-        ydl.extract_info(url, download=True)
+        info = ydl.extract_info(url, download=True)
+        if isinstance(info, dict) and info.get("title"):
+            title = info["title"]
     after = set(media_dir.glob("*.mp3"))
-    return sorted(after - before)
+    return title, sorted(after - before)
 
 
 async def _run_job(job_id: str, mode: str, urls: list[str], media_dir: Path):
@@ -67,7 +70,7 @@ async def _run_job(job_id: str, mode: str, urls: list[str], media_dir: Path):
         if mode == "playlist":
             job["status"] = f"playlist {i}/{len(urls)}"
             try:
-                paths = await asyncio.to_thread(_download_playlist, url, media_dir)
+                title, paths = await asyncio.to_thread(_download_playlist, url, media_dir)
                 tids = []
                 dup_count = 0
                 for p in paths:
@@ -85,8 +88,18 @@ async def _run_job(job_id: str, mode: str, urls: list[str], media_dir: Path):
                     else:
                         tid = await asyncio.to_thread(index_file, p)
                         tids.append(tid)
+                # créer une playlist dans le logiciel
+                if tids:
+                    from app.database import conn_ctx as _cc
+                    with _cc() as c:
+                        c.execute("INSERT INTO playlists (name) VALUES (?)", (title,))
+                        pid = c.execute("SELECT last_insert_rowid()").fetchone()[0]
+                        pos = 1
+                        for tid in tids:
+                            c.execute("INSERT INTO playlist_tracks (playlist_id, track_id, position) VALUES (?,?,?)", (pid, tid, pos))
+                            pos += 1
                 msg = "doublon détecté, merci de vérifier manuellement via la section doublons" if dup_count else None
-                job["results"].append({"url": url, "ok": True, "count": len(paths), "track_ids": tids, "duplicates": dup_count, "error": msg})
+                job["results"].append({"url": url, "ok": True, "count": len(paths), "track_ids": tids, "playlist": title, "duplicates": dup_count, "error": msg})
             except Exception as e:
                 log.warning("YouTube playlist erreur %s: %s", url, e)
                 job["results"].append({"url": url, "ok": False, "error": str(e)})
@@ -127,7 +140,10 @@ def register(app, context):
 
     @router.get("/modal", response_class=HTMLResponse)
     def modal():
-        template = templates.env.get_template("plugins/youtube_modal.html")
+        from jinja2 import Environment, FileSystemLoader
+        d = Path(__file__).resolve().parent
+        env = Environment(loader=FileSystemLoader(str(d)))
+        template = env.get_template("youtube_modal.html")
         return HTMLResponse(template.render())
 
     @router.post("/import")
