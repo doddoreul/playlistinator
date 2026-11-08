@@ -18,22 +18,53 @@ log = logging.getLogger("playlistinator.library")
 router = APIRouter()
 
 
-def _tracks(q: str = "", artist: str = "", album: str = "") -> list[Track]:
+def _tracks(q: str = "", artist: str = "", album: str = "", sort: str = "title") -> list[Track]:
     sql = "SELECT * FROM tracks WHERE 1=1"
     params = []
     if q:
-        sql += " AND (title LIKE ? OR artist LIKE ?)"
-        params += [f"%{q}%", f"%{q}%"]
+        sql += " AND (title LIKE ? OR artist LIKE ? OR album LIKE ?)"
+        params += [f"%{q}%", f"%{q}%", f"%{q}%"]
     if artist:
         sql += " AND artist LIKE ?"
         params.append(f"%{artist}%")
     if album:
         sql += " AND album LIKE ?"
         params.append(f"%{album}%")
-    sql += " ORDER BY artist, title"
+    order = "title"
+    if sort == "artist":
+        order = "artist, title"
+    elif sort == "album":
+        order = "album, title"
+    elif sort == "title":
+        order = "title"
+    sql += f" ORDER BY {order}"
     with conn_ctx() as c:
         rows = c.execute(sql, params).fetchall()
     return [Track.from_row(r) for r in rows]
+
+
+def _artists(q: str = "") -> list[dict]:
+    sql = "SELECT artist AS name, COUNT(*) AS count FROM tracks WHERE artist IS NOT NULL"
+    params = []
+    if q:
+        sql += " AND artist LIKE ?"
+        params.append(f"%{q}%")
+    sql += " GROUP BY artist ORDER BY artist"
+    with conn_ctx() as c:
+        rows = c.execute(sql, params).fetchall()
+    return [{"name": r["name"], "count": r["count"]} for r in rows]
+
+
+def _albums(q: str = "") -> list[dict]:
+    sql = "SELECT album AS name, artist, COUNT(*) AS count FROM tracks WHERE album IS NOT NULL"
+    params = []
+    if q:
+        sql += " AND (album LIKE ? OR artist LIKE ?)"
+        params += [f"%{q}%", f"%{q}%"]
+    sql += " GROUP BY album, artist ORDER BY album"
+    with conn_ctx() as c:
+        rows = c.execute(sql, params).fetchall()
+    return [{"name": r["name"], "artist": r["artist"], "count": r["count"]} for r in rows]
 
 
 @router.get("/", response_class=HTMLResponse)
@@ -46,8 +77,14 @@ def home(request: Request):
 
 
 @router.get("/api/tracks", response_class=HTMLResponse)
-def tracks_partial(request: Request, q: str = "", artist: str = "", album: str = ""):
-    tracks = _tracks(q, artist, album)
+def tracks_partial(request: Request, q: str = "", artist: str = "", album: str = "", view: str = "musiques", sort: str = "title"):
+    if view == "artistes":
+        artists = _artists(q)
+        return templates.TemplateResponse(request, "partials/artists.html", {"artists": artists})
+    if view == "albums":
+        albums = _albums(q)
+        return templates.TemplateResponse(request, "partials/albums.html", {"albums": albums})
+    tracks = _tracks(q, artist, album, sort)
     return templates.TemplateResponse(request, "partials/tracks.html", {"tracks": tracks})
 
 

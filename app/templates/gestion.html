@@ -3,8 +3,10 @@
 {% block content %}
 <div>
   <h2>Gestion</h2>
-  <div style="display:flex;gap:8px;margin-bottom:12px;">
+  <div style="display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap;">
     <button class="tab active" onclick="gTab('musiques')">Musiques</button>
+    <button class="tab" onclick="gTab('artistes')">Artistes</button>
+    <button class="tab" onclick="gTab('albums')">Albums</button>
     <button class="tab" onclick="gTab('playlists')">Playlists</button>
     <button class="tab" onclick="gTab('dups')">Doublons</button>
   </div>
@@ -19,22 +21,65 @@
       <button type="submit">Ajouter</button>
     </form>
     <div id="add-track-status" class="muted"></div>
+    <div style="margin-bottom:8px;">
+      <button onclick="deleteSelected()">Supprimer la sélection</button>
+    </div>
     <table class="tracks">
-      <thead><tr><th>Titre</th><th>Artiste</th><th>Album</th><th></th></tr></thead>
+      <thead><tr><th style="width:30px;"><input type="checkbox" onclick="toggleAll(this)"></th><th>Titre</th><th>Artiste</th><th>Album</th><th></th></tr></thead>
       <tbody>
       {% for t in tracks %}
       <tr data-track-id="{{ t.id }}">
+        <td><input type="checkbox" class="sel-cb" value="{{ t.id }}"></td>
         <td><input style="width:100%;min-width:360px" value="{{ t.title or '' }}" onchange="updateField({{ t.id }},'title',this.value)"></td>
         <td><input style="width:100%" value="{{ t.artist or '' }}" onchange="updateField({{ t.id }},'artist',this.value)"></td>
         <td><input style="width:100%" value="{{ t.album or '' }}" onchange="updateField({{ t.id }},'album',this.value)"></td>
         <td style="text-align:right;white-space:nowrap;">
           <button onclick="deleteTrack({{ t.id }})">Suppr</button>
-          <button onclick="searchCoverGestion({{ t.id }})">Pochette</button>
+          <button onclick="openDetails({{ t.id }})">Détails</button>
         </td>
       </tr>
       {% endfor %}
       </tbody>
     </table>
+  </div>
+
+  <div id="pane-artistes" style="display:none;">
+    <h3>Artistes</h3>
+    {% if not artists %}
+    <p class="muted">Aucun artiste.</p>
+    {% else %}
+    <table class="tracks">
+      <thead><tr><th>Artiste</th><th>Pistes</th></tr></thead>
+      <tbody>
+      {% for a in artists %}
+      <tr>
+        <td>{{ a.name }}</td>
+        <td>{{ a.count }}</td>
+      </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+    {% endif %}
+  </div>
+
+  <div id="pane-albums" style="display:none;">
+    <h3>Albums</h3>
+    {% if not albums %}
+    <p class="muted">Aucun album.</p>
+    {% else %}
+    <table class="tracks">
+      <thead><tr><th>Album</th><th>Artiste</th><th>Pistes</th></tr></thead>
+      <tbody>
+      {% for a in albums %}
+      <tr>
+        <td>{{ a.name }}</td>
+        <td>{{ a.artist or '—' }}</td>
+        <td>{{ a.count }}</td>
+      </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+    {% endif %}
   </div>
 
   <div id="pane-playlists" style="display:none;">
@@ -84,9 +129,99 @@
   </div>
 </div>
 
+<aside id="details-panel" class="details-panel">
+  <button class="details-close" onclick="closeDetails()">✕</button>
+  <div id="details-content"></div>
+</aside>
+
 <script>
+function toggleAll(cb){
+  document.querySelectorAll('.sel-cb').forEach(c=>c.checked=cb.checked);
+}
+async function deleteSelected(){
+  const ids=[...document.querySelectorAll('.sel-cb:checked')].map(c=>c.value);
+  if(!ids.length){ alert('Aucune sélection'); return; }
+  if(!confirm('Supprimer '+ids.length+' piste(s) ?')) return;
+  for(const id of ids){
+    await fetch(`/api/tracks/${id}`,{method:'DELETE'});
+  }
+  location.reload();
+}
+async function openDetails(id){
+  const panel=document.getElementById('details-panel');
+  const content=document.getElementById('details-content');
+  if(!panel||!content) return;
+  content.innerHTML='<p class="muted">Chargement…</p>';
+  panel.classList.add('open');
+  try{
+    const r=await fetch(`/api/tracks/${id}`);
+    const t=await r.json();
+    const dur=t.duration? (Math.floor(t.duration/60)+':'+String(Math.floor(t.duration%60)).padStart(2,'0')):'—';
+    content.innerHTML=`
+      <img src="/cover/${t.id}" alt="" style="width:100%;margin-bottom:12px;border:2px solid var(--border);">
+      <h3>Détails</h3>
+      <div style="margin-bottom:8px;">
+        <label class="muted" style="display:block;margin-bottom:4px;">Titre</label>
+        <input id="d-title" value="${escapeHtml(t.title||'')}" style="width:100%;">
+      </div>
+      <div style="margin-bottom:8px;">
+        <label class="muted" style="display:block;margin-bottom:4px;">Artiste</label>
+        <input id="d-artist" value="${escapeHtml(t.artist||'')}" style="width:100%;">
+      </div>
+      <div style="margin-bottom:8px;">
+        <label class="muted" style="display:block;margin-bottom:4px;">Album</label>
+        <input id="d-album" value="${escapeHtml(t.album||'')}" style="width:100%;">
+      </div>
+      <div class="row"><span>Durée</span><span>${dur}</span></div>
+      <div class="row"><span>Chemin</span><span style="font-size:10px;word-break:break-all;">${escapeHtml(t.path)}</span></div>
+      <div style="margin-top:12px;display:flex;gap:8px;flex-wrap:wrap;">
+        <button onclick="saveDetails(${t.id})">Sauvegarder</button>
+        <button onclick="searchCoverDetails(${t.id})">Rechercher pochette</button>
+        <label style="cursor:pointer;border:2px solid var(--border);padding:8px 12px;display:inline-block;">Importer pochette <input type="file" accept="image/*" onchange="uploadCoverDetails(${t.id}, this)" style="display:none;"></label>
+      </div>
+      <div id="cover-search-results" style="margin-top:8px;"></div>`;
+  }catch(e){ content.innerHTML='<p class="muted">Erreur</p>'; }
+}
+function closeDetails(){
+  const panel=document.getElementById('details-panel');
+  if(panel) panel.classList.remove('open');
+}
+async function saveDetails(id){
+  const fd=new FormData();
+  fd.append('title', document.getElementById('d-title').value);
+  fd.append('artist', document.getElementById('d-artist').value);
+  fd.append('album', document.getElementById('d-album').value);
+  fd.append('write_tags_flag','0');
+  await fetch(`/api/tracks/${id}/edit`,{method:'POST',body:fd});
+  alert('Sauvegardé');
+  location.reload();
+}
+async function searchCoverDetails(id){
+  const r=await fetch(`/api/tracks/${id}/covers`);
+  const data=await r.json();
+  const res=data.results||[];
+  const box=document.getElementById('cover-search-results');
+  if(!res.length){ box.innerHTML='<p class="muted">Aucune pochette trouvée</p>'; return; }
+  box.innerHTML=res.map((x,i)=>`<div style="margin:4px 0;"><img src="${x.image_url}" style="width:80px;vertical-align:middle;margin-right:8px;"><button onclick="applyCoverDetails(${id},'${x.image_url}')">Appliquer</button></div>`).join('');
+}
+async function applyCoverDetails(id,url){
+  const fd=new FormData(); fd.append('image_url',url);
+  await fetch(`/api/tracks/${id}/cover`,{method:'POST',body:fd});
+  alert('Pochette appliquée');
+  openDetails(id);
+}
+async function uploadCoverDetails(id,input){
+  if(!input.files.length) return;
+  const fd=new FormData(); fd.append('file',input.files[0]);
+  await fetch(`/api/tracks/${id}/cover`,{method:'POST',body:fd});
+  alert('Pochette importée');
+  openDetails(id);
+}
+function escapeHtml(s){ return String(s).replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
 function gTab(name){
   document.getElementById('pane-musiques').style.display = name==='musiques'?'block':'none';
+  document.getElementById('pane-artistes').style.display = name==='artistes'?'block':'none';
+  document.getElementById('pane-albums').style.display = name==='albums'?'block':'none';
   document.getElementById('pane-playlists').style.display = name==='playlists'?'block':'none';
   document.getElementById('pane-dups').style.display = name==='dups'?'block':'none';
   document.querySelectorAll('.tab').forEach(b=>b.classList.remove('active'));

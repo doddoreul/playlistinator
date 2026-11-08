@@ -6,7 +6,8 @@ function scanLibrary() {
   });
 }
 function searchTracks(q) {
-  htmx.ajax('GET','/api/tracks',{target:'#main-content', values:{q}});
+  const v = (typeof currentView !== 'undefined') ? currentView : 'musiques';
+  htmx.ajax('GET','/api/tracks',{target:'#main-content', values:{q, view:v}});
 }
 function createPlaylist() {
   const name = prompt('Nom de la playlist ?');

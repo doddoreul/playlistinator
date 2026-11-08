@@ -17,6 +17,22 @@ def _tracks():
     return [Track.from_row(r) for r in rows]
 
 
+def _artists():
+    with conn_ctx() as c:
+        rows = c.execute(
+            "SELECT artist AS name, COUNT(*) AS n FROM tracks WHERE artist IS NOT NULL GROUP BY artist ORDER BY artist"
+        ).fetchall()
+    return [{"name": r["name"], "count": r["n"]} for r in rows]
+
+
+def _albums():
+    with conn_ctx() as c:
+        rows = c.execute(
+            "SELECT album AS name, artist, COUNT(*) AS n FROM tracks WHERE album IS NOT NULL GROUP BY album, artist ORDER BY album"
+        ).fetchall()
+    return [{"name": r["name"], "artist": r["artist"], "count": r["n"]} for r in rows]
+
+
 def _playlists():
     with conn_ctx() as c:
         rows = c.execute("SELECT * FROM playlists ORDER BY name").fetchall()
@@ -44,6 +60,8 @@ def _duplicates():
 def gestion_page(request: Request):
     return templates.TemplateResponse(request, "gestion.html", {
         "tracks": _tracks(),
+        "artists": _artists(),
+        "albums": _albums(),
         "playlists": _playlists(),
         "duplicates": _duplicates(),
     })

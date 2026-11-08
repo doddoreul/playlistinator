@@ -5,10 +5,33 @@
       <input type="search" id="search" placeholder="Rechercher..." oninput="searchTracks(this.value)">
       <button onclick="scanLibrary()">Scanner</button>
     </div>
+    <div style="display:flex;gap:8px;margin-bottom:12px;">
+      <button class="tab active" onclick="libTab('musiques', this)">Musiques</button>
+      <button class="tab" onclick="libTab('artistes', this)">Artistes</button>
+      <button class="tab" onclick="libTab('albums', this)">Albums</button>
+    </div>
     <div id="modal-container"></div>
-    <div id="main-content" hx-get="/api/tracks" hx-trigger="load" hx-swap="innerHTML"></div>
+    <div id="main-content" hx-get="/api/tracks?view=musiques" hx-trigger="load" hx-swap="innerHTML"></div>
     <aside id="details-panel" class="details-panel">
       <button class="details-close" onclick="closeDetails()">✕</button>
       <div id="details-content"></div>
     </aside>
+    <script>
+    let currentView='musiques';
+    function libTab(view, btn){
+      currentView=view;
+      document.querySelectorAll('.tab').forEach(b=>b.classList.remove('active'));
+      if(btn) btn.classList.add('active');
+      const q=document.getElementById('search').value;
+      htmx.ajax('GET','/api/tracks',{target:'#main-content', values:{view, q}});
+    }
+    function filterByArtist(name){
+      document.getElementById('search').value=name;
+      htmx.ajax('GET','/api/tracks',{target:'#main-content', values:{view:'musiques', artist:name}});
+    }
+    function filterByAlbum(name){
+      document.getElementById('search').value=name;
+      htmx.ajax('GET','/api/tracks',{target:'#main-content', values:{view:'musiques', album:name}});
+    }
+    </script>
 {% endblock %}

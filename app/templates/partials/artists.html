@@ -1,0 +1,15 @@
+{% if not artists %}
+<p class="muted">Aucun artiste.</p>
+{% else %}
+<table class="tracks">
+  <thead><tr><th>Artiste</th><th>Pistes</th></tr></thead>
+  <tbody>
+  {% for a in artists %}
+  <tr style="cursor:pointer;" onclick="filterByArtist('{{ a.name|e }}')">
+    <td>{{ a.name }}</td>
+    <td>{{ a.count }}</td>
+  </tr>
+  {% endfor %}
+  </tbody>
+</table>
+{% endif %}
